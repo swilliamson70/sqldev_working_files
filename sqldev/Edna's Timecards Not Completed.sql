@@ -149,6 +149,6 @@ where perjobs.perjobs_year = to_char(sysdate,'YYYY')
                                         and x1.ptrcaln_pict_code = ptrcaln.ptrcaln_pict_code
                                          and ptrcaln_end_date <= sysdate))
       and perjobs.perjobs_action_ind = 'T'
-      and perjobs.perjobs_status_ind = 'C' --not in ('C','A')
+      and perjobs.perjobs_status_ind not in ('C','A')
 order by "VP_Name",spriden.spriden_last_name, spriden.spriden_first_name, spriden.spriden_mi
 ;
