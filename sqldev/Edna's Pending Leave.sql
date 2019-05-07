@@ -172,7 +172,7 @@ from PAYROLL.PERJOBS PERJOBS JOIN PAYROLL.PTRCALN PTRCALN ON PERJOBS.PERJOBS_YEA
                              LEFT OUTER JOIN POSNCTL.NBRRJQE NBRRJQE ON PERJOBS.PERJOBS_PIDM = NBRRJQE.NBRRJQE_PIDM
 ,spriden appr_spriden join goremal appr_goremal on appr_spriden.spriden_change_ind is null and appr_spriden.spriden_pidm = appr_goremal.goremal_pidm and appr_goremal.goremal_emal_code = 'NSU'
 ,organization_hierarchy vp_org join goremal vp_goremal on vp_org.financial_manager_uid = vp_goremal.goremal_pidm and vp_goremal.goremal_emal_code = 'NSU'
-
+                                                                
 where ( PERJOBS.PERJOBS_YEAR = to_number(to_char(add_months(sysdate,-1),'YYYY'))
          and PERJOBS.PERJOBS_ACAT_CODE = 'LEAVE'
          and PERJOBS.PERJOBS_PICT_CODE = 'MN'
@@ -182,6 +182,10 @@ where ( PERJOBS.PERJOBS_YEAR = to_number(to_char(add_months(sysdate,-1),'YYYY'))
               and  to_date(to_char(add_months(sysdate,-1),'dd-mon-yyyy')) between ptrcaln_start_date and ptrcaln_end_date))
               )
 
+        and vp_org.organization_code =    (select organization_level_2 from organization_hierarchy
+                                    where organization_code =  perjobs_orgn_code_ts
+                                      and chart_of_accounts = perjobs_coas_code_ts) 
+        and vp_org.chart_of_accounts = perjobs_coas_code_ts
 
   order by PERJOBS.PERJOBS_YEAR,
           SPRIDEN.SPRIDEN_LAST_NAME,
