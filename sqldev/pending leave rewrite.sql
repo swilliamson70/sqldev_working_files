@@ -1,4 +1,4 @@
-SELECT
+SELECT 
     perjobs_pidm                        
     ,ee_spriden.spriden_id              emp_id
     ,ee_spriden.spriden_last_name       emp_last_name
