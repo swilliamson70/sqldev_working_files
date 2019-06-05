@@ -1,0 +1,415 @@
+create or replace PROCEDURE NSU_FYE_DEFICIENCY AS
+t_dat_file_def utl_file.file_type;
+t_line_def varchar2(200);
+t_stu_dir varchar2(20) := 'U13_STUDENT';
+lv_resolved_adm varchar2(1) :=null;
+lv_resolved_act varchar2(1) :=null;
+lv_resolved_cpt varchar2(1) :=null;
+lv_cpt_score numeric := 0;
+lv_new_cpt_score numeric := 0;
+lv_resolved_crse varchar2(1) :=null;
+lv_resolved varchar2(1) :=null;
+
+cursor c_def is 
+select
+spriden_id,
+spriden_first_name,
+spriden_last_name ,
+sprhold_pidm,
+sprhold_hldd_code ,
+sprhold.rowid this_row,
+to_char(sprhold_from_date,'DD-MON-YYYY') hold_start,
+to_char(sprhold_to_date,'DD-MON-YYYY') hold_end,
+decode(sprhold_hldd_code, '13','ENGA','62','ENGA','14','MTHA','15','MTHA','63','MTHA','16','REDA','64','REDA','17','SCIA','18','SCIA',null) resolve_code,
+decode(sprhold_hldd_code, '13','A01','62','A01','14','A02','15','A02','63','A02','16','A03','64','A03','17','A04','18','A04',null) act_code,
+decode(sprhold_hldd_code, '13','S11','62','S11','14','S12','15','S12','63','S12','16','S11','64','S11',null) sat_code,
+decode(sprhold_hldd_code, '13','CPTE','62','CPTE','14','CPTM','15','CPTM','63','CPTM','16','CPTR','64','CPTR',null) cpt_code,
+decode(sprhold_hldd_code, '13','CPTW','62','CPTW','14','NSM1','15','NSM1','63','NSM1','16','ANGR','64','ANGR',null) new_cpt_code,
+decode(sprhold_hldd_code, '13','ENGL0123','62','ENGL0123','14','MATH0123','15','MATH0133','63','MATH0123','16','ENGL0113','64','ENGL0113',null) course_code, 
+sprhold_user
+from  spriden,
+      sprhold
+where 
+         sprhold_hldd_code in ( '13','62','14','15','63','16','64','17','18' ) 
+     and (sprhold_to_date is null or sprhold_to_date > sysdate)
+     and sprhold_pidm = spriden_pidm
+     and spriden_change_ind is null order by sprhold_pidm, sprhold_hldd_code
+   
+;
+
+cursor c_sci is
+select 
+spriden_id,
+spriden_first_name,
+spriden_last_name ,
+sp1.sprhold_pidm,
+sp1.sprhold_hldd_code ,
+sp1.rowid this_row,
+to_char(sp1.sprhold_from_date,'DD-MON-YYYY') hold_start,
+to_char(sp1.sprhold_to_date,'DD-MON-YYYY') hold_end,
+sp1.sprhold_user
+from
+spriden,
+sprhold sp1
+where
+sp1.sprhold_hldd_code in ( '17','18' ) 
+and sp1.sprhold_pidm = spriden_pidm
+and spriden_change_ind is null
+and   (sp1.sprhold_to_date is null or sp1.sprhold_to_date > sysdate)
+and sp1.sprhold_pidm not in 
+(select actDef.sprhold_pidm
+ from
+      (select sp2.sprhold_pidm, count(sp2.sprhold_pidm) cnt
+       from sprhold sp2
+       where 
+            sp2.sprhold_hldd_code in ( '13','62','14','15','63','16','64' )  
+            and (sp2.sprhold_to_date is null or sp2.sprhold_to_date > sysdate )
+            group by sp2.sprhold_pidm
+          having count(sp2.sprhold_pidm) > 0
+       ) actDef
+  )
+;
+
+
+function csv_field(p_field varchar2) return varchar2 is
+ t_field varchar2(500);
+ begin
+ t_field := p_field;
+ t_field := replace(t_field,'"','""');
+ return '"' || t_field || '"';
+ end csv_field;
+ 
+ 
+function is_resolved_ind(p_pidm varchar2, p_resolved_code varchar2) return varchar2 is
+  return_resolved varchar2(1) default null;
+  begin
+   select 'Y' into return_resolved
+   from sortest
+   where
+            sortest_pidm = p_pidm
+        and sortest_tesc_code = p_resolved_code;
+   
+   return return_resolved;
+   EXCEPTION 
+      WHEN no_data_found THEN
+         return_resolved := '_';
+         return return_resolved;
+  end is_resolved_ind;
+  
+  
+--function is_resolved_act(p_pidm varchar2, p_resolved_code varchar2) return varchar2 is
+--  return_resolved varchar2(1) default null;
+--  begin
+--   select distinct 'Y' 
+--    into return_resolved
+--   from sortest
+--   where
+--            sortest_pidm = p_pidm
+--        and sortest_tesc_code = p_resolved_code
+--        and sortest_test_score >= 19
+--        and rownum = 1;
+--   
+--   return return_resolved;
+--   EXCEPTION 
+--      WHEN no_data_found THEN
+--         return_resolved := '_';
+--         return return_resolved;
+--  end is_resolved_act;  
+function is_resolved_test_score(p_pidm varchar2, p_resolved_code varchar2) return varchar2 is
+  return_resolved varchar2(1) default '_';
+  
+  begin
+   
+   
+   select distinct 'Y' 
+    into return_resolved
+   from sortest
+   where
+            sortest_pidm = p_pidm
+        and sortest_tesc_code = p_resolved_code
+        and sortest_test_score >= 
+            case when p_resolved_code like 'A__'
+              then 19
+            when p_resolved_code = 'S11'
+              then 480
+            when p_resolved_code = 'S12'
+              then 530
+            end
+        and rownum = 1;
+   
+   return return_resolved;
+   EXCEPTION 
+      WHEN no_data_found THEN
+         return_resolved := '_';
+         return return_resolved;
+  end is_resolved_test_score;  
+ 
+ function get_cpt_score(p_pidm varchar2, p_resolved_code varchar2) return varchar2 is
+  return_cpt_score numeric default 0;
+  begin
+   select max(sortest_test_score)
+    into return_cpt_score
+   from sortest
+   where
+            sortest_pidm = p_pidm
+        and sortest_tesc_code = p_resolved_code
+       ;
+   
+   return return_cpt_score;
+   EXCEPTION 
+      WHEN no_data_found THEN
+         return_cpt_score := 0;
+         return return_cpt_score;
+  end get_cpt_score;   
+ 
+ function is_resolved_course(p_pidm varchar2, p_subj_code varchar2, p_crse_numb varchar2) return varchar2 is
+  return_resolved varchar2(1) default null;
+  v_crse_numb varchar2(100);
+  
+    
+  begin
+   select distinct 'Y' 
+    into return_resolved
+   from 
+         ( select  shrtckn_pidm pidm,
+                   shrtckn_subj_code subj,
+                   shrtckn_crse_numb crse,
+                   shrtckg_grde_code_final grade
+           from    shrtckn, 
+                   shrtckg
+           where 
+                   shrtckn_pidm = p_pidm
+                   and substr(shrtckn_crse_numb,1,1) in ('0','1') 
+                   and shrtckn_pidm = shrtckg_pidm
+                   and shrtckn_term_code = shrtckg_Term_code 
+                   and shrtckn_seq_no = shrtckg_tckn_seq_no 
+                   and substr(shrtckg_Grde_code_Final,1,1) in ('A','B','C','D','P') 
+                   and substr(shrtckg_Grde_code_Final,1,2) <> 'AW'
+           union    
+           select  shrtrce_pidm pidm,
+                   shrtrce_subj_code subj,
+                   shrtrce_crse_numb crse,
+                   shrtrce_grde_code grade
+           from    shrtrce
+           where
+                   shrtrce_pidm = p_pidm
+                   and substr(shrtrce_crse_numb,1,1) in ('0','1') 
+                   and substr(shrtrce_Grde_code,1,1) in ('A','B','C','D','P','S') 
+                   and substr(shrtrce_Grde_code,1,2) <> 'AW'
+            ) d1
+    
+   where
+         d1.pidm = p_pidm
+         and d1.subj = p_subj_code
+         and (d1.crse = p_crse_numb or d1.crse in ('0133','1113','1213','1473','1513','1000'))
+   --      and rownum = 1
+         ;
+   
+   return return_resolved;
+   EXCEPTION 
+      WHEN no_data_found THEN
+         return_resolved := '_';
+         return return_resolved;
+  end is_resolved_course;  
+  
+  function is_resolved_course_read (p_pidm varchar2, p_subj_code varchar2, p_crse_numb varchar2) return varchar2 is
+  return_resolved varchar2(1) default null;
+  v_crse_numb varchar2(100);
+  
+    
+  begin
+   select distinct 'Y' 
+    into return_resolved
+   from 
+         ( select  shrtckn_pidm pidm,
+                   shrtckn_subj_code subj,
+                   shrtckn_crse_numb crse,
+                   shrtckg_grde_code_final grade
+           from    shrtckn, 
+                   shrtckg
+           where 
+                   shrtckn_pidm = p_pidm
+                   and substr(shrtckn_crse_numb,1,1) in ('0','1') 
+                   and shrtckn_pidm = shrtckg_pidm
+                   and shrtckn_term_code = shrtckg_Term_code 
+                   and shrtckn_seq_no = shrtckg_tckn_seq_no 
+                   and substr(shrtckg_Grde_code_Final,1,1) in ('A','B','C','D','P') 
+                   and substr(shrtckg_Grde_code_Final,1,2) <> 'AW'
+           union    
+           select  shrtrce_pidm pidm,
+                   shrtrce_subj_code subj,
+                   shrtrce_crse_numb crse,
+                   shrtrce_grde_code grade
+           from    shrtrce
+           where
+                   shrtrce_pidm = p_pidm
+                   and substr(shrtrce_crse_numb,1,1) in ('0','1') 
+                   and substr(shrtrce_Grde_code,1,1) in ('A','B','C','D','P') 
+                   and substr(shrtrce_Grde_code,1,2) <> 'AW'
+            ) d1
+    
+   where
+         d1.pidm = p_pidm
+         and d1.subj = p_subj_code
+         and d1.crse = p_crse_numb 
+   --      and rownum = 1
+         ;
+   
+   return return_resolved;
+   EXCEPTION 
+      WHEN no_data_found THEN
+         return_resolved := '_';
+         return return_resolved;
+  end is_resolved_course_read;  
+ 
+ 
+ 
+BEGIN
+
+t_dat_file_def := utl_file.fopen(t_stu_dir,'FYEDEFS.dat','W');
+
+for r_def in c_def loop
+
+  lv_resolved_adm := null;
+  lv_resolved_adm := is_resolved_ind(r_def.sprhold_pidm, r_def.resolve_code);
+  
+  lv_resolved_act := null;
+  lv_resolved_act := is_resolved_test_score(r_def.sprhold_pidm, r_def.act_code);
+  if lv_resolved_act = '_'
+    then lv_resolved_act := is_resolved_test_score(r_def.sprhold_pidm, r_def.sat_code);
+  end if;
+  
+  lv_resolved_cpt := null;
+  lv_cpt_score  := 0;
+  lv_cpt_score := get_cpt_score(r_def.sprhold_pidm, r_def.cpt_code);
+  
+  lv_new_cpt_score := 0;
+  lv_new_cpt_score := get_cpt_score(r_def.sprhold_pidm, r_def.new_cpt_code);
+  
+  lv_resolved_crse := null;
+  IF r_def.sprhold_hldd_code <> '16' and r_def.sprhold_hldd_code <> '64' THEN
+      lv_resolved_crse := is_resolved_course(r_def.sprhold_pidm, substr(r_def.course_code,1,4), substr(r_def.course_code,5,4));
+  else
+      lv_resolved_crse := is_resolved_course_read(r_def.sprhold_pidm, substr(r_def.course_code,1,4), substr(r_def.course_code,5,4));
+  end if;
+  
+    IF r_def.sprhold_hldd_code in ('14','63') THEN
+        IF lv_cpt_score >= 44 or lv_new_cpt_score >= 60 THEN
+            lv_resolved_cpt := 'Y';
+        ELSE
+            lv_resolved_cpt := '_';
+        END IF;
+    ELSIF r_def.sprhold_hldd_code = '15' THEN
+        IF   lv_cpt_score >= 75 or lv_new_cpt_score >= 90 THEN
+            lv_resolved_cpt := 'Y';
+        ELSE
+            lv_resolved_cpt := '_';
+        END IF;
+    ELSIF r_def.sprhold_hldd_code in ('13','62') THEN
+        IF lv_cpt_score > 79.4 OR lv_new_cpt_score >= 5 THEN
+            lv_resolved_cpt := 'Y';
+        ELSE
+            lv_resolved_cpt := '_';
+        END IF;
+-- cg : 6/11/2018 : new cpt tests
+--    ELSIF lv_cpt_score > 74.4 THEN
+    ELSIF r_def.sprhold_hldd_code in ('16','64') THEN
+        IF lv_cpt_score >= 75 or lv_new_cpt_score >= 251 THEN
+            lv_resolved_cpt := 'Y';
+        ELSE
+            lv_resolved_cpt := '_';
+        END IF;
+    ELSE
+        lv_resolved_cpt := '_';
+    END IF;
+        
+        lv_resolved := '_';
+        IF lv_resolved_adm = 'Y' or lv_resolved_act = 'Y' or lv_resolved_cpt = 'Y' or lv_resolved_crse = 'Y' then
+           lv_resolved := 'Y';
+        END IF;
+          
+
+       
+
+  t_line_def := lv_resolved||'|'|| 
+                r_def.spriden_id||'|'||
+                r_def.spriden_first_name||'|'||
+                r_def.spriden_last_name||'|'||
+                r_def.sprhold_hldd_code||'|'||
+                r_def.hold_start||'|'||
+                r_def.hold_end||'|'||
+                r_def.sprhold_user||'|'||
+                r_def.resolve_code||'|'||
+                lv_resolved_adm||'|'||
+                r_def.act_code||'|'||
+                lv_resolved_act||'|'||
+                r_def.cpt_code||'|'||
+                lv_cpt_score||'|'||
+                lv_resolved_cpt||'|'||
+                r_def.course_code||'|'||
+                lv_resolved_crse||'|'||
+                '1';
+                
+  utl_file.put_line(t_dat_file_def,t_line_def,false);
+  
+  BEGIN
+      IF lv_resolved = 'Y' then
+           update sprhold sprh
+            set sprh.sprhold_to_date       = sysdate - 1
+            , sprh.sprhold_reason        = 'Deficiency Resolved'
+            , sprh.sprhold_activity_date = sysdate
+           where  
+            sprh.rowid = r_def.this_row;
+          
+           utl_file.put_line(t_dat_file_def,'Success:  '||t_line_def,false);
+        END IF;
+           exception
+              when others then
+            utl_file.put_line(t_dat_file_def,'Error:  '||t_line_def,false);
+     
+     
+ END;
+         
+ 
+end loop;
+  BEGIN
+     commit;
+  END;
+ 
+for r_sci in c_sci loop
+t_line_def :=   'Y'||'|'|| 
+                r_sci.spriden_id||'|'||
+                r_sci.spriden_first_name||'|'||
+                r_sci.spriden_last_name||'|'||
+                r_sci.sprhold_hldd_code||'|'||
+                r_sci.hold_start||'|'||
+                r_sci.hold_end||'|'||
+                r_sci.sprhold_user
+               ;
+ utl_file.put_line(t_dat_file_def,t_line_def,false);
+  BEGIN
+          update sprhold sprh
+            set sprh.sprhold_to_date       = sysdate - 1
+            , sprh.sprhold_reason        = 'Deficiency Resolved'
+            , sprh.sprhold_activity_date = sysdate
+           where  
+            sprh.rowid = r_sci.this_row;
+          
+           utl_file.put_line(t_dat_file_def,'Success:  '||t_line_def,false);
+           exception
+              when others then
+            utl_file.put_line(t_dat_file_def,'Error:  '||t_line_def,false);
+  
+ END;
+end loop;
+
+ BEGIN
+     commit;
+  END;
+
+                   
+
+utl_file.fclose(t_dat_file_def);
+
+
+END NSU_FYE_DEFICIENCY;
