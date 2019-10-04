@@ -1,8 +1,35 @@
+begin 
+    nsudev.nsu_fye_deficiency_test();
+--rollback;
+end;
 /*************************************************
-PROCEDURE NSU_FYE_DEFICIENCY 
+PROCEDURE NSU_FYE_DEFICIENCY
+    Updates SPRHOLD to clear holds for academic deficiencies based on test scores or 
+    courses taken. Builds two cursors to process science def and all other acad defs.
+    
+    This runs nightly in Automic process flow xxx
+    
+Northeastern State Univerisity
+    2019-06-13 sw   SR 9467201: change resolve criteria
+                    - Started inline comments and formatting code
+                    - Modified def resolve criteria per SR:
+                        Chg Engl 13(English Skills Deficiency)/62 CPTE to 80
+                        Chk "" CTPW to 5 - nothing to change
+                        Add ANGR >= 255 - have to rework code lists to Add 13/62 ANGR code
+                        
+                        Chg Math 14 (Math0123 Skills Deficiency) SAT to 510
+                        Chk "" NSM1 to => 60 - nothing to change
+
+                        Chg Math 15 (Math0133 Skills Deficiency) SAT to 510 - Hold 15 gets same sat_cde as 14 above
+                        Chk "" NSM1 >= 90 - nothing to change
+                        Add Courses MATH 1313 and 1523 with passing grades - Added hold15_course2_code, hold15_course3_code
+
+                        Chg Read 16 (Reading Skills Deficiency) SAT to 510 - uses S11 as sat_cde, changed value
+                        Chk "" CPTR >= 75 - nothing to change
+                        Chk "" ANGR >= 251 - moved ANGx codes to new ang_code, threashold value unchanged
 
 *************************************************/
-CREATE OR REPLACE PROCEDURE NSU_FYE_DEFICIENCY AS
+CREATE OR REPLACE PROCEDURE NSU_FYE_DEFICIENCY_test AS
 
     t_dat_file_def utl_file.file_type;
     t_line_def varchar2(200);
@@ -12,10 +39,11 @@ CREATE OR REPLACE PROCEDURE NSU_FYE_DEFICIENCY AS
     lv_resolved_cpt varchar2(1) :=null;
     lv_cpt_score numeric := 0;
     lv_new_cpt_score numeric := 0;
+    lv_ang_score numeric := 0;
     lv_resolved_crse varchar2(1) :=null;
     lv_resolved varchar2(1) :=null;
     
-    CURSOR c_def IS -- Get people with current academic holds - hold codes at STVHLDD
+    CURSOR c_def IS -- Get people with current academic holds, codes for Eng,Math,Reading,Sci- hold codes at STVHLDD
     SELECT
         spriden_id,
         spriden_first_name,
@@ -25,13 +53,35 @@ CREATE OR REPLACE PROCEDURE NSU_FYE_DEFICIENCY AS
         sprhold.rowid this_row,
         to_char(sprhold_from_date,'DD-MON-YYYY') hold_start,
         to_char(sprhold_to_date,'DD-MON-YYYY') hold_end,
-        decode(sprhold_hldd_code, '13','ENGA','62','ENGA','14','MTHA','15','MTHA','63','MTHA','16','REDA','64','REDA','17','SCIA','18','SCIA',null) resolve_code,
-        decode(sprhold_hldd_code, '13','A01','62','A01','14','A02','15','A02','63','A02','16','A03','64','A03','17','A04','18','A04',null) act_code,
-        decode(sprhold_hldd_code, '13','S11','62','S11','14','S12','15','S12','63','S12','16','S11','64','S11',null) sat_code,
-        decode(sprhold_hldd_code, '13','CPTE','62','CPTE','14','CPTM','15','CPTM','63','CPTM','16','CPTR','64','CPTR',null) cpt_code,
-        decode(sprhold_hldd_code, '13','CPTW','62','CPTW','14','NSM1','15','NSM1','63','NSM1','16','ANGR','64','ANGR',null) new_cpt_code,
-        decode(sprhold_hldd_code, '13','ENGL0123','62','ENGL0123','14','MATH0123','15','MATH0133','63','MATH0123','16','ENGL0113','64','ENGL0113',null) course_code, 
+        
+        -- resolve_code: English/Math/Reading/Science Deficiency Cleared code present in SORTEST, checked in is_resolved_ind()
+        decode(sprhold_hldd_code, '13','ENGA',  '62','ENGA','14','MTHA','15','MTHA','63','MTHA','16','REDA','64','REDA','17','SCIA','18','SCIA',null) resolve_code,
+        
+        -- act_code: ACT sections, checked in is_resolved_test_score()
+        decode(sprhold_hldd_code, '13','A01',   '62','A01', '14','A02', '15','A02', '63','A02', '16','A03', '64','A03', '17','A04','18','A04',null) act_code,
+        
+        -- sat_code: SAT sections, checked in is_resolved_test_score()
+        decode(sprhold_hldd_code, '13','S11',   '62','S11', '14','S12', '15','S12', '63','S12', '16','S11', '64','S11', null) sat_code,
+        
+        -- cpt_code: max score retrieved by get_cpt_score(), score checked in Main
+        decode(sprhold_hldd_code, '13','CPTE',  '62','CPTE','14','CPTM','15','CPTM','63','CPTM','16','CPTR','64','CPTR',null) cpt_code,
+        
+        -- new_cpt_code: max score retrieved by get_cpt_score(), score checked in Main
+--        decode(sprhold_hldd_code, '13','CPTW','62','CPTW','14','NSM1','15','NSM1','63','NSM1','16','ANGR','64','ANGR',null) new_cpt_code,
+        decode(sprhold_hldd_code, '13','CPTW','62','CPTW','14','NSM1','15','NSM1','63','NSM1',null) new_cpt_code,
+
+        -- ang_code: max score retrieved by get_cpt_score(), score checked in Main - added 6/2019 moved 16/64 angr here
+        decode(sprhold_hldd_code, '13','ANGW','62','ANGW','16','ANGR','64','ANGR',null) ang_code,
+        
+        -- course_code: checked in is_resolved_course(), is_resolved_course_read()
+        decode(sprhold_hldd_code, '13','ENGL0123','62','ENGL0123','14','MATH0123','15','MATH0133','63','MATH0123','16','ENGL0113','64','ENGL0113',null) course_code,
+        
+        -- hold15_course2_code and hold15_course3_code both added for 1000 lvl classes to use parallel logic in existing code - added 6/2019
+        decode(sprhold_hldd_code, '15','MATH1313',null) hold15_course2_code,
+        decode(sprhold_hldd_code, '15','MATH1523',null) hold15_course3_code,
+        
         sprhold_user
+        
     FROM  spriden,
           sprhold
     WHERE 
@@ -42,42 +92,60 @@ CREATE OR REPLACE PROCEDURE NSU_FYE_DEFICIENCY AS
    
     ;
     
-    cursor c_sci is
-    select 
-    spriden_id,
-    spriden_first_name,
-    spriden_last_name ,
-    sp1.sprhold_pidm,
-    sp1.sprhold_hldd_code ,
-    sp1.rowid this_row,
-    to_char(sp1.sprhold_from_date,'DD-MON-YYYY') hold_start,
-    to_char(sp1.sprhold_to_date,'DD-MON-YYYY') hold_end,
-    sp1.sprhold_user
-    from
-    spriden,
-    sprhold sp1
-    where
-    sp1.sprhold_hldd_code in ( '17','18' ) 
-    and sp1.sprhold_pidm = spriden_pidm
-    and spriden_change_ind is null
-    and   (sp1.sprhold_to_date is null or sp1.sprhold_to_date > sysdate)
-    and sp1.sprhold_pidm not in 
-    (select actDef.sprhold_pidm
-     from
-          (select sp2.sprhold_pidm, count(sp2.sprhold_pidm) cnt
-           from sprhold sp2
-           where 
-                sp2.sprhold_hldd_code in ( '13','62','14','15','63','16','64' )  
-                and (sp2.sprhold_to_date is null or sp2.sprhold_to_date > sysdate )
-                group by sp2.sprhold_pidm
-              having count(sp2.sprhold_pidm) > 0
-           ) actDef
-      )
-    ;
+    CURSOR c_sci IS --  Get people with current science holds
+    SELECT
+        spriden_id,
+        spriden_first_name,
+        spriden_last_name,
+        sp1.sprhold_pidm,
+        sp1.sprhold_hldd_code,
+        sp1.rowid this_row,
+        TO_CHAR(sp1.sprhold_from_date,'DD-MON-YYYY')hold_start,
+        TO_CHAR(sp1.sprhold_to_date,'DD-MON-YYYY')hold_end,
+        sp1.sprhold_user
+    FROM
+        spriden,
+        sprhold sp1
+    WHERE
+    sp1.sprhold_hldd_code IN(
+            '17',
+            '18'
+        )
+        AND sp1.sprhold_pidm = spriden_pidm
+        AND spriden_change_ind IS NULL
+        AND(sp1.sprhold_to_date IS NULL
+            OR sp1.sprhold_to_date > sysdate)
+        AND sp1.sprhold_pidm NOT IN(
+            SELECT
+                actdef.sprhold_pidm
+            FROM
+                (
+                    SELECT
+                        sp2.sprhold_pidm,
+                        COUNT(sp2.sprhold_pidm)cnt
+                    FROM sprhold sp2
+                    WHERE
+                        sp2.sprhold_hldd_code IN(
+                            '13',
+                            '62',
+                            '14',
+                            '15',
+                            '63',
+                            '16',
+                            '64'
+                        )
+                        AND(sp2.sprhold_to_date IS NULL
+                            OR sp2.sprhold_to_date > SYSDATE)
+                    GROUP BY
+                        sp2.sprhold_pidm
+                    HAVING
+                        COUNT(sp2.sprhold_pidm)> 0
+           )actdef
+        );
     
-/***********************************************
-FUNCTION 
-***********************************************/    
+/*************************************************
+FUNCTION not used
+*************************************************/    
     function csv_field(p_field varchar2) return varchar2 is
      t_field varchar2(500);
      begin
@@ -86,10 +154,10 @@ FUNCTION
      return '"' || t_field || '"';
      end csv_field;
      
-/***********************************************
+/*************************************************
 FUNCTION is_resolved_ind
     Checks SORTEST to see if they've taken the test in p_resolved_code
-***********************************************/
+*************************************************/
     FUNCTION is_resolved_ind( 
         p_pidm            VARCHAR2,
         p_resolved_code   VARCHAR2
@@ -131,10 +199,10 @@ FUNCTION is_resolved_ind
     --         return return_resolved;
     --  end is_resolved_act;  
 
-/***********************************************
+/*************************************************
 FUNCTION is_resolved_test_score
     Checks to see if they recieved a hard-coded score on ACT or SAT section
-***********************************************/    
+*************************************************/    
     FUNCTION is_resolved_test_score(
         p_pidm            VARCHAR2,
         p_resolved_code   VARCHAR2
@@ -153,8 +221,10 @@ FUNCTION is_resolved_test_score
                 CASE
                     WHEN p_resolved_code LIKE 'A__' THEN -- Mostly ACT codes
                         19
-                    WHEN p_resolved_code = 'S11' THEN 480 -- SAT Evid-Based Read and Write
-                    WHEN p_resolved_code = 'S12' THEN 530 -- SAT Math Section
+                    --WHEN p_resolved_code = 'S11' THEN 480 -- SAT Evid-Based Read and Write
+                    WHEN p_resolved_code = 'S11' THEN 510 -- chg 6/14/2019 sw
+                    --WHEN p_resolved_code = 'S12' THEN 530 -- SAT Math Section
+                    WHEN p_resolved_code = 'S12' THEN 510 -- chg 6/14/2019 sw 
                 END
             AND ROWNUM = 1;
 
@@ -165,10 +235,10 @@ FUNCTION is_resolved_test_score
             RETURN return_resolved;
     END is_resolved_test_score;
     
-/***********************************************
+/*************************************************
 FUNCTION get_cpt_score
     Return max CPT test score
-***********************************************/     
+*************************************************/     
     FUNCTION get_cpt_score(
         p_pidm            VARCHAR2,
         p_resolved_code   VARCHAR2
@@ -191,11 +261,11 @@ FUNCTION get_cpt_score
             RETURN return_cpt_score;
     END get_cpt_score; 
 
-/***********************************************
+/*************************************************
 FUNCTION is_resolved_course
     Checks course (shrtckn) and grade (shrtckg) for substr(course_code)
       and (union) checks transfer credits (shrtrce) for equivalence 
-***********************************************/    
+*************************************************/    
     FUNCTION is_resolved_course(
         p_pidm        VARCHAR2,
         p_subj_code   VARCHAR2,
@@ -281,11 +351,12 @@ FUNCTION is_resolved_course
             RETURN return_resolved;
     END is_resolved_course;
 
-/***********************************************
+/*************************************************
 FUNCTION is_resolved_course_read
     Checks course (shrtckn) and grade (shrtckg) for substr(course_code)
       and (union) checks transfer credits (shrtrce) for equivalence 
-***********************************************/      
+      Returns 'Y' or null
+*************************************************/      
     FUNCTION is_resolved_course_read(
         p_pidm        VARCHAR2,
         p_subj_code   VARCHAR2,
@@ -362,13 +433,13 @@ FUNCTION is_resolved_course_read
             RETURN return_resolved;
     END is_resolved_course_read;
      
-/***********************************************
+/*************************************************
 MAIN BLOCK
-***********************************************/    
+*************************************************/    
          
     BEGIN <<main_block>>
-    
-        t_dat_file_def := utl_file.fopen(t_stu_dir,'FYEDEFS.dat','W');
+        dbms_output.put_line('Running Process');
+        t_dat_file_def := utl_file.fopen(t_stu_dir,'FYEDEFS_test.dat','W');
     
         FOR r_def IN c_def LOOP -- for each row in deficiency cursor
 
@@ -391,132 +462,151 @@ MAIN BLOCK
             -- Get max(new CPT) test score
             lv_new_cpt_score := 0;
             lv_new_cpt_score := get_cpt_score(r_def.sprhold_pidm, r_def.new_cpt_code);
+            
+            -- Get max(ANGx) test score
+            lv_ang_score := 0;
+            lv_ang_score := get_cpt_score(r_def.sprhold_pidm, r_def.ang_code);
       
-            --Check if this person has taken remedial course here or transfer (course_code) and passed
+            --Check if this person has taken remedial course here or transfer (course_code) and has passed
             lv_resolved_crse := null;
             IF r_def.sprhold_hldd_code NOT IN ('16','64') THEN
-                lv_resolved_crse := is_resolved_course(r_def.sprhold_pidm, substr(r_def.course_code,1,4), substr(r_def.course_code,5,4));
+                -- chg 6/2019 - added if 15 then check any course code for passing grade in specified courses
+                --lv_resolved_crse := is_resolved_course(r_def.sprhold_pidm, substr(r_def.course_code,1,4), substr(r_def.course_code,5,4));
+                IF r_def.sprhold_hldd_code = '15' THEN
+                    IF (is_resolved_course(r_def.sprhold_pidm, substr(r_def.course_code,1,4), substr(r_def.course_code,5,4)) = 'Y')
+                        OR
+                       (is_resolved_course(r_def.sprhold_pidm, substr(r_def.hold15_course2_code,1,4),substr(r_def.hold15_course2_code,5,4)) = 'Y')
+                        OR
+                       (is_resolved_course(r_def.sprhold_pidm, substr(r_def.hold15_course3_code,1,4),substr(r_def.hold15_course3_code,5,4)) = 'Y') 
+                            THEN
+                                lv_resolved_crse := 'Y';
+                    END IF;
+                ELSE 
+                    lv_resolved_crse := is_resolved_course(r_def.sprhold_pidm, substr(r_def.course_code,1,4), substr(r_def.course_code,5,4));
+                END IF;
             ELSE
                 lv_resolved_crse := is_resolved_course_read(r_def.sprhold_pidm, substr(r_def.course_code,1,4), substr(r_def.course_code,5,4));
             END IF;
       
-        IF r_def.sprhold_hldd_code in ('14','63') THEN
-            IF lv_cpt_score >= 44 or lv_new_cpt_score >= 60 THEN
-                lv_resolved_cpt := 'Y';
+            -- Check CPT scores
+            IF r_def.sprhold_hldd_code in ('14','63') THEN -- Math0123 Skills Def, Math Curr Def
+                IF lv_cpt_score >= 44 or lv_new_cpt_score >= 60 THEN
+                    lv_resolved_cpt := 'Y';
+                ELSE
+                    lv_resolved_cpt := '_';
+                END IF;
+            ELSIF r_def.sprhold_hldd_code = '15' THEN -- Math0133 Skills Def
+                IF   lv_cpt_score >= 75 or lv_new_cpt_score >= 90 THEN
+                    lv_resolved_cpt := 'Y';
+                ELSE
+                    lv_resolved_cpt := '_';
+                END IF;
+            ELSIF r_def.sprhold_hldd_code in ('13','62') THEN --Engl Skills Def, Engl Curr Def
+                --IF lv_cpt_score > 79.4 OR lv_new_cpt_score >= 5 THEN -- sw : 6/2019 new score, new test 
+                IF lv_cpt_score > 80 OR lv_new_cpt_score >= 5 OR lv_ang_score >= 255 THEN
+                    lv_resolved_cpt := 'Y';
+                ELSE
+                    lv_resolved_cpt := '_';
+                END IF;
+        -- cg : 6/11/2018 : new cpt tests
+        --    ELSIF lv_cpt_score > 74.4 THEN
+            ELSIF r_def.sprhold_hldd_code in ('16','64') THEN --Read Skills Def, Read Curr Def
+                --IF lv_cpt_score >= 75 or lv_new_cpt_score >= 251 THEN -- sw : 6/2019 moved ANGR to ang_code
+                IF lv_cpt_score >= 75 or lv_ang_score >= 255 THEN
+                    lv_resolved_cpt := 'Y';
+                ELSE
+                    lv_resolved_cpt := '_';
+                END IF;
             ELSE
                 lv_resolved_cpt := '_';
             END IF;
-        ELSIF r_def.sprhold_hldd_code = '15' THEN
-            IF   lv_cpt_score >= 75 or lv_new_cpt_score >= 90 THEN
-                lv_resolved_cpt := 'Y';
-            ELSE
-                lv_resolved_cpt := '_';
-            END IF;
-        ELSIF r_def.sprhold_hldd_code in ('13','62') THEN
-            IF lv_cpt_score > 79.4 OR lv_new_cpt_score >= 5 THEN
-                lv_resolved_cpt := 'Y';
-            ELSE
-                lv_resolved_cpt := '_';
-            END IF;
-    -- cg : 6/11/2018 : new cpt tests
-    --    ELSIF lv_cpt_score > 74.4 THEN
-        ELSIF r_def.sprhold_hldd_code in ('16','64') THEN
-            IF lv_cpt_score >= 75 or lv_new_cpt_score >= 251 THEN
-                lv_resolved_cpt := 'Y';
-            ELSE
-                lv_resolved_cpt := '_';
-            END IF;
-        ELSE
-            lv_resolved_cpt := '_';
-        END IF;
             
-            lv_resolved := '_';
-            IF lv_resolved_adm = 'Y' or lv_resolved_act = 'Y' or lv_resolved_cpt = 'Y' or lv_resolved_crse = 'Y' then
-               lv_resolved := 'Y';
-            END IF;
-              
-    
-           
-    
-      t_line_def := lv_resolved||'|'|| 
-                    r_def.spriden_id||'|'||
-                    r_def.spriden_first_name||'|'||
-                    r_def.spriden_last_name||'|'||
-                    r_def.sprhold_hldd_code||'|'||
-                    r_def.hold_start||'|'||
-                    r_def.hold_end||'|'||
-                    r_def.sprhold_user||'|'||
-                    r_def.resolve_code||'|'||
-                    lv_resolved_adm||'|'||
-                    r_def.act_code||'|'||
-                    lv_resolved_act||'|'||
-                    r_def.cpt_code||'|'||
-                    lv_cpt_score||'|'||
-                    lv_resolved_cpt||'|'||
-                    r_def.course_code||'|'||
-                    lv_resolved_crse||'|'||
-                    '1';
-                    
-      utl_file.put_line(t_dat_file_def,t_line_def,false);
+        --Set resolved flag
+        lv_resolved := '_';
+        IF lv_resolved_adm = 'Y' OR lv_resolved_act = 'Y' OR lv_resolved_cpt = 'Y' OR lv_resolved_crse = 'Y' THEN
+            lv_resolved := 'Y';
+        END IF;
+  
+        t_line_def := lv_resolved || '|'
+                      || r_def.spriden_id || '|'
+                      || r_def.spriden_first_name || '|'
+                      || r_def.spriden_last_name || '|'
+                      || r_def.sprhold_hldd_code || '|'
+                      || r_def.hold_start || '|'
+                      || r_def.hold_end || '|'
+                      || r_def.sprhold_user || '|'
+                      || r_def.resolve_code || '|'
+                      || lv_resolved_adm || '|'
+                      || r_def.act_code || '|'
+                      || lv_resolved_act || '|'
+                      || r_def.cpt_code || '|'
+                      || lv_cpt_score || '|'
+                      || lv_resolved_cpt || '|'
+                      || r_def.course_code || '|'
+                      || lv_resolved_crse || '|'
+                      || '1';
+        
+        utl_file.put_line(t_dat_file_def,t_line_def,false);
       
-      BEGIN
-          IF lv_resolved = 'Y' then
-               update sprhold sprh
-                set sprh.sprhold_to_date       = sysdate - 1
-                , sprh.sprhold_reason        = 'Deficiency Resolved'
-                , sprh.sprhold_activity_date = sysdate
-               where  
-                sprh.rowid = r_def.this_row;
-              
-               utl_file.put_line(t_dat_file_def,'Success:  '||t_line_def,false);
+        BEGIN << engl_math_read_update >>
+            IF lv_resolved = 'Y' THEN
+/* don't update while testing
+                UPDATE sprhold sprh
+                    SET sprh.sprhold_to_date = SYSDATE - 1,
+                    sprh.sprhold_reason = 'Deficiency Resolved',
+                    sprh.sprhold_activity_date = SYSDATE
+                WHERE
+                    sprh.rowid = r_def.this_row;
+*/    
+            utl_file.put_line(t_dat_file_def,'Success:  ' ||t_line_def,false);
             END IF;
-               exception
-                  when others then
-                utl_file.put_line(t_dat_file_def,'Error:  '||t_line_def,false);
-         
-         
-     END;
+            
+            EXCEPTION
+                WHEN OTHERS then
+                    utl_file.put_line(t_dat_file_def,'Error:  ' || t_line_def,false);
+        END; -- engl_math_read_update
              
+    END LOOP; --FOR r_def IN c_def
+    
+    BEGIN
+        COMMIT;
+    END;
      
-    end loop;
-      BEGIN
-         commit;
-      END;
-     
-    for r_sci in c_sci loop
-    t_line_def :=   'Y'||'|'|| 
-                    r_sci.spriden_id||'|'||
-                    r_sci.spriden_first_name||'|'||
-                    r_sci.spriden_last_name||'|'||
-                    r_sci.sprhold_hldd_code||'|'||
-                    r_sci.hold_start||'|'||
-                    r_sci.hold_end||'|'||
-                    r_sci.sprhold_user
-                   ;
-     utl_file.put_line(t_dat_file_def,t_line_def,false);
-      BEGIN
-              update sprhold sprh
-                set sprh.sprhold_to_date       = sysdate - 1
-                , sprh.sprhold_reason        = 'Deficiency Resolved'
-                , sprh.sprhold_activity_date = sysdate
-               where  
+    FOR r_sci IN c_sci LOOP -- process science defs
+        t_line_def := 'Y' || '|'
+                      || r_sci.spriden_id || '|'
+                      || r_sci.spriden_first_name || '|'
+                      || r_sci.spriden_last_name || '|'
+                      || r_sci.sprhold_hldd_code || '|'
+                      || r_sci.hold_start || '|'
+                      || r_sci.hold_end || '|'
+                      || r_sci.sprhold_user;
+    
+        utl_file.put_line(t_dat_file_def,t_line_def,false);
+        BEGIN
+/* don't update while testing
+            UPDATE sprhold sprh
+            SET
+                sprh.sprhold_to_date = SYSDATE - 1
+                    ,
+                sprh.sprhold_reason = 'Deficiency Resolved',
+                sprh.sprhold_activity_date = SYSDATE
+            WHERE
                 sprh.rowid = r_sci.this_row;
-              
-               utl_file.put_line(t_dat_file_def,'Success:  '||t_line_def,false);
-               exception
-                  when others then
-                utl_file.put_line(t_dat_file_def,'Error:  '||t_line_def,false);
-      
-     END;
-    end loop;
+*/
+            utl_file.put_line(t_dat_file_def,'Success:  ' || t_line_def,false);
+        EXCEPTION
+            WHEN OTHERS THEN
+                utl_file.put_line(t_dat_file_def,'Error:  ' || t_line_def,false);
+        END;
     
-     BEGIN
-         commit;
-      END;
+    END LOOP; --FOR r_sci IN c_sci
     
-                       
+--    BEGIN
+--        COMMIT;
+--    END;
     
-    utl_file.fclose(t_dat_file_def);
-    
+    utl_file.fclose(t_dat_file_def);    
 
-END NSU_FYE_DEFICIENCY;
+END NSU_FYE_DEFICIENCY_test;
+
