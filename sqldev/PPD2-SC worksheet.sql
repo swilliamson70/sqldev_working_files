@@ -604,8 +604,149 @@ SELECT * FROM(
 )
 --select * from w_salutation
 , w_ytd AS(
+    SELECT/*+ MATERIALIZE */ 
+        entity_uid
+        , SUM(CASE WHEN year_pos = 1 THEN tots END) YTD
+        , SUM(CASE WHEN year_pos = 2 THEN tots END) YTD_1
+        , SUM(CASE WHEN year_pos = 3 THEN tots END) ytd_2
+        , SUM(CASE WHEN year_pos = 4 THEN tots END) YTD_3
+        , SUM(CASE WHEN year_pos = 5 THEN tots END) YTD_4
+        , SUM(tots) LIFETIME
+    FROM(
+        SELECT
+            agbgift_pidm ENTITY_UID
+            , to_char(agbgift_gift_date,'YYYY') GIFT_DATE
+            , sum(nvl(agrgdes_amt,0)) TOTS
+        FROM
+            agbgift
+            LEFT JOIN agrgdes
+                ON agbgift_pidm = agrgdes_pidm
+                AND agbgift_gift_no = agrgdes_gift_no
+        GROUP BY
+            agbgift_pidm
+            , to_char(agbgift_gift_date,'YYYY')
+    
+    UNION
+    SELECT
+        agrgaux_pidm ENTITY_UID
+        , TO_CHAR(agrgaux_auxl_value_date,'YYYY') GIFT_DATE
+        , SUM(NVL(agrgaux_dcpr_value,0))*-1 TOTS
+    FROM
+        agrgaux
+    GROUP BY
+        agrgaux_pidm
+        , TO_CHAR(agrgaux_auxl_value_date,'YYYY')
+    )
+    LEFT JOIN(
+        SELECT
+           TO_CHAR(SYSDATE,'YYYY')-LEVEL+1 YEAR
+           , LEVEL YEAR_POS
+        FROM 
+            DUAL
+        CONNECT BY LEVEL <= 5
+    )
+    ON year = gift_date
+GROUP BY entity_uid
+)
+
+--select * from w_ytd
+, w_jfsgd AS(
+    SELECT
+        amrexrt_pidm ENTITY_UID,
+        amrexrt_ext_value RATING
+    FROM
+        amrexrt -- advancement_rating
+    WHERE
+        amrexrt_exrs_code = 'JFSGD'
+)
+--select * from w_jfsgd
+, w_employment AS(
+    SELECT 
+        person_uid
+        , employer_name
+        , position_title
+    FROM(
+        SELECT
+            aprehis_pidm PERSON_UID
+            , nvl2( aprehis_empr_name -- if not null then 1 else 2
+                    ,aprehis_empr_name
+                    ,nvl2(aprehis_empr_pidm,f_format_name(aprehis_empr_pidm,'LFMI'),null)
+                ) EMPLOYER_NAME
+            , aprehis_empl_position POSITION_TITLE
+            --, aprehis.*
+            , row_number() over (partition by aprehis_pidm order by aprehis_pidm,nvl(aprehis_from_date,aprehis_to_date) desc, aprehis_seq_no desc) rn
+        FROM
+            aprehis
+    )
+    WHERE rn = 1
+)
+--select * from w_employment;
+, w_address AS(
+    SELECT
+        spraddr_pidm,
+        MAX(spraddr_street_line1) KEEP (DENSE_RANK FIRST ORDER BY DECODE(spraddr_atyp_code,'MA',1,'PR',2,'BU',3,'BD',4,5) ASC, spraddr_seqno DESC) spraddr_street_line1,
+        MAX(spraddr_street_line2) KEEP (DENSE_RANK FIRST ORDER BY DECODE(spraddr_atyp_code,'MA',1,'PR',2,'BU',3,'BD',4,5) ASC, spraddr_seqno DESC) spraddr_street_line2,
+        MAX(spraddr_city) KEEP (DENSE_RANK FIRST ORDER BY DECODE(spraddr_atyp_code,'MA',1,'PR',2,'BU',3,'BD',4,5) ASC, spraddr_seqno DESC) spraddr_city,
+        MAX(spraddr_stat_code) KEEP (DENSE_RANK FIRST ORDER BY DECODE(spraddr_atyp_code,'MA',1,'PR',2,'BU',3,'BD',4,5) ASC, spraddr_seqno DESC) spraddr_stat_code,
+        MAX(spraddr_zip) KEEP (DENSE_RANK FIRST ORDER BY DECODE(spraddr_atyp_code,'MA',1,'PR',2,'BU',3,'BD',4,5) ASC, spraddr_seqno DESC) spraddr_zip,
+        MAX(spraddr_cnty_code) KEEP (DENSE_RANK FIRST ORDER BY DECODE(spraddr_atyp_code,'MA',1,'PR',2,'BU',3,'BD',4,5) ASC, spraddr_seqno DESC) spraddr_cnty_code,
+        MAX(spraddr_natn_code) KEEP (DENSE_RANK FIRST ORDER BY DECODE(spraddr_atyp_code,'MA',1,'PR',2,'BU',3,'BD',4,5) ASC, spraddr_seqno DESC) spraddr_natn_code,
+        MAX(spraddr_atyp_code) KEEP (DENSE_RANK FIRST ORDER BY DECODE(spraddr_atyp_code,'MA',1,'PR',2,'BU',3,'BD',4,5) ASC, spraddr_seqno DESC) spraddr_atyp_code
+    FROM
+        spraddr
+    WHERE
+        sysdate BETWEEN spraddr_from_date AND nvl(spraddr_to_date, sysdate +1)
+        AND spraddr_status_ind IS NULL
+    GROUP BY
+        spraddr_pidm
+)
+--select * from w_address;
+, w_long_years_given AS(
+    SELECT /*+ MATERIALIZE */ 
+        spriden_pidm
+        , MAX(l) RECENT_CONSECUTIVE_YEARS
+    FROM(
+        SELECT DISTINCT 
+            spriden_pidm
+            , agbgift.AGBGIFT_FISC_CODE
+            , level L
+        FROM
+            agbgift
+            JOIN spriden
+                ON spriden_pidm = agbgift_pidm
+                AND spriden_change_ind IS NULL
+        WHERE AGBGIFT_FISC_CODE <= TO_CHAR(TO_DATE(:parm_DT_GivingEnd), 'YYYY')
+        CONNECT BY PRIOR spriden_pidm = spriden_pidm
+            AND PRIOR agbgift_fisc_code = agbgift_fisc_code -1
+    )
+    GROUP BY spriden_pidm
+)
+--select * from w_long_years_given;
+, w_recent_cons_years AS(
+    SELECT /*+ MATERIALIZE */ 
+        spriden_pidm
+        , MAX(l) KEEP (DENSE_RANK FIRST ORDER BY agbgift_fisc_code DESC) RECENT_CONSECUTIVE_YEARS
+    FROM(
+        SELECT DISTINCT
+            spriden_pidm
+            , agbgift.agbgift_fisc_code
+            , level L
+        FROM
+            agbgift
+            JOIN spriden
+                ON spriden_pidm = agbgift_pidm
+                AND spriden_change_ind IS NULL
+        WHERE AGBGIFT_FISC_CODE <= TO_CHAR(TO_DATE(:parm_DT_GivingEnd), 'YYYY')
+        CONNECT BY PRIOR spriden_pidm = spriden_pidm
+            AND PRIOR agbgift_fisc_code = agbgift_fisc_code -1
+    )
+    GROUP BY spriden_pidm
+)
+--select * from w_recent_cons_years;
+, w_range_tot_gift AS(
 select 1 from dual
 )
-select * from w_ytd
+select * from w_range_tot_gift;
+--w_range_tot_aux
 order by 1;
 select * from all_col_comments where table_name = 'SPBPERS';
