@@ -1,4 +1,4 @@
-select 
+SELECT 
     ee_spriden.spriden_id               ee_id
     ,ee_spriden.spriden_last_name       ee_last_name
     ,ee_spriden.spriden_first_name      ee_first_name
@@ -19,65 +19,94 @@ select
     ,appr_goremal.goremal_email_address appr_email
     ,vp_org.financial_manager_id        vp_id
     ,vp_org.financial_manager_name      vp_name
-    ,case
-        when vp_org.financial_manager_uid = 131297 -- Steven Turner N00131182
-            then 'loguel@nsuok.edu'
-        when appr_spriden.spriden_pidm = vp_org.financial_manager_uid -- if you don't want vp direct reports going to that vp
-            then 'loguel@nsuok.edu'
-        else
+    ,CASE
+        WHEN vp_org.financial_manager_uid = 131297 -- Steven Turner N00131182
+            THEN 'loguel@nsuok.edu'
+        WHEN appr_spriden.spriden_pidm = vp_org.financial_manager_uid -- if you don't want vp direct reports going to that vp
+            THEN 'loguel@nsuok.edu'
+        ELSE
             vp_goremal.goremal_email_address
-    end                                 vp_email
+    END                                 vp_email
 
-from perjobs join spriden ee_spriden on perjobs_pidm = ee_spriden.spriden_pidm and ee_spriden.spriden_change_ind is null
-             join goremal ee_goremal on ee_spriden.spriden_pidm = ee_goremal.goremal_pidm and ee_goremal.goremal_emal_code = 'NSU'
-             join perrout on perrout_jobs_seqno = perjobs_seqno and perrout_appr_seqno = 1
-    ,spriden appr_spriden join goremal appr_goremal on appr_spriden.spriden_change_ind is null and appr_spriden.spriden_pidm = appr_goremal.goremal_pidm and appr_goremal.goremal_emal_code = 'NSU'
-    ,organization_hierarchy vp_org join goremal vp_goremal on vp_org.financial_manager_uid = vp_goremal.goremal_pidm and vp_goremal.goremal_emal_code = 'NSU'
+FROM    
+    perjobs
+    JOIN spriden ee_spriden 
+        ON perjobs_pidm = ee_spriden.spriden_pidm 
+        AND ee_spriden.spriden_change_ind IS NULL
+             JOIN goremal ee_goremal 
+                ON ee_spriden.spriden_pidm = ee_goremal.goremal_pidm 
+                AND ee_goremal.goremal_emal_code = 'NSU'
+             JOIN perrout 
+                ON perrout_jobs_seqno = perjobs_seqno 
+                AND perrout_appr_seqno = 1
+    ,spriden appr_spriden
+        JOIN goremal appr_goremal
+            ON appr_spriden.spriden_change_ind IS NULL 
+            AND appr_spriden.spriden_pidm = appr_goremal.goremal_pidm 
+            AND appr_goremal.goremal_emal_code = 'NSU'
+    ,organization_hierarchy vp_org 
+        JOIN goremal vp_goremal 
+            ON vp_org.financial_manager_uid = vp_goremal.goremal_pidm 
+            AND vp_goremal.goremal_emal_code = 'NSU'
 
-where perjobs_year = extract(year from sysdate)
-  and perjobs_pict_code = 'BW'
-  and perjobs_payno = (select payno
-                       from (select ptrcaln_payno payno, row_number() over (partition by ptrcaln_year, ptrcaln_pict_code order by ptrcaln_payno desc) rn
-                             from ptrcaln
-                             where ptrcaln_year = extract(year from sysdate)
-                               and ptrcaln_pict_code = 'BW'
-                               and ptrcaln_end_date <= trunc(sysdate)
+WHERE 
+    perjobs_year = EXTRACT(YEAR FROM sysdate)
+    AND perjobs_pict_code = 'BW'
+    AND perjobs_payno = (   SELECT payno
+                            FROM(   SELECT 
+                                        ptrcaln_payno payno
+                                        , row_number() OVER (PARTITION BY ptrcaln_year, ptrcaln_pict_code ORDER BY ptrcaln_payno desc) rn
+                                    FROM 
+                                        ptrcaln
+                                    WHERE 
+                                        ptrcaln_year = EXTRACT(YEAR FROM SYSDATE)
+                                        AND ptrcaln_pict_code = 'BW'
+                               AND ptrcaln_end_date <= TRUNC(SYSDATE)
                              )
-                       where rn = 1)
-  and appr_spriden.spriden_pidm = perrout_appr_pidm
-  and vp_org.organization_code =    (select organization_level_2 from organization_hierarchy
-                                    where organization_code =  perjobs_orgn_code_ts
-                                      and chart_of_accounts = perjobs_coas_code_ts) 
-  and vp_org.chart_of_accounts = perjobs_coas_code_ts
+                       WHERE rn = 1
+                    )
+  AND appr_spriden.spriden_pidm = perrout_appr_pidm
+  AND vp_org.organization_code = (  SELECT 
+                                        organization_level_2
+                                    FROM 
+                                        organization_hierarchy
+                                    WHERE 
+                                        organization_code =  perjobs_orgn_code_ts
+                                        AND chart_of_accounts = perjobs_coas_code_ts) 
+  AND vp_org.chart_of_accounts = perjobs_coas_code_ts
   
-  and perjobs.perjobs_action_ind = 'T'
-  and perjobs.perjobs_status_ind not in ('C','A')
+  AND perjobs.perjobs_action_ind = 'T'
+  AND perjobs.perjobs_status_ind NOT IN ('C','A')
 
-order by vp_org.financial_manager_name,ee_spriden.spriden_last_name,ee_spriden.spriden_first_name,ee_spriden.spriden_mi ;
+ORDER BY vp_org.financial_manager_name
+        ,ee_spriden.spriden_last_name
+        ,ee_spriden.spriden_first_name
+        ,ee_spriden.spriden_mi 
+;
  
-select * from perjobs
-where perjobs_pidm = 31091; 
-select  from ptrcaln;
-select * from perrout where perrout_jobs_seqno = 187544;
-select * from all_tab_comments where table_name = 'PERROUT';
-                       select payno
-                       from (select ptrcaln_payno payno, row_number() over (partition by ptrcaln_year, ptrcaln_pict_code order by ptrcaln_payno desc) rn
-                             from ptrcaln
-                             where ptrcaln_year = extract(year from sysdate)
-                               and ptrcaln_pict_code = 'BW'
-                               and ptrcaln_end_date <= trunc(sysdate)
+SELECT * FROM perjobs
+WHERE perjobs_pidm = 31091; 
+SELECT  FROM ptrcaln;
+SELECT * FROM perrout WHERE perrout_jobs_seqno = 187544;
+SELECT * FROM all_tab_comments WHERE table_name = 'PERROUT';
+                       SELECT payno
+                       FROM (SELECT ptrcaln_payno payno, row_number() over (partition by ptrcaln_year, ptrcaln_pict_code order by ptrcaln_payno desc) rn
+                             FROM ptrcaln
+                             WHERE ptrcaln_year = extract(year FROM sysdate)
+                               AND ptrcaln_pict_code = 'BW'
+                               AND ptrcaln_end_date <= trunc(sysdate)
                             )
                           
-                       where rn = 1;
+                       WHERE rn = 1;
                        
-select * from nbrjobs where nbrjobs_posn = 'X99684';
+SELECT * FROM nbrjobs WHERE nbrjobs_posn = 'X99684';
 
-select * from employee_position
-where position_contract_type = 'P' and position_status = 'A' and effective_end_date >= sysdate;
+SELECT * FROM employee_position
+WHERE position_contract_type = 'P' AND position_status = 'A' AND effective_end_date >= sysdate;
 
-select vp_org.organization_level_2,vp_org.financial_manager_uid,vp_org.financial_manager_name from organization_hierarchy vp_org
-where  organization_code =  (select organization_level_2 from organization_hierarchy
-        where organization_code = 'T60101') 
-  and chart_of_accounts = 'A' --perjobs_coas_code_ts
+SELECT vp_org.organization_level_2,vp_org.financial_manager_uid,vp_org.financial_manager_name FROM organization_hierarchy vp_org
+WHERE  organization_code =  (SELECT organization_level_2 FROM organization_hierarchy
+        WHERE organization_code = 'T60101') 
+  AND chart_of_accounts = 'A' --perjobs_coas_code_ts
 ;
-select * from organization_hierarchy;
+SELECT * FROM organization_hierarchy;

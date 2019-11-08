@@ -39,10 +39,16 @@ WITH w_constituent AS(
             ON goremal_pidm = apbcons_pidm
             AND goremal_status_ind = 'A'
             AND goremal_preferred_ind = 'Y'
+    WHERE
+        f_format_name(apbcons_pidm,'LFMI') NOT LIKE '%DO%NOT%USE%'
+        AND apbcons_pidm NOT IN (SELECT bad_pidm FROM nsudev.nsu_alum_pidm WHERE bad_pidm = apbcons_pidm)
+        AND apbcons_pidm NOT IN (SELECT aprcatg_pidm FROM aprcatg WHERE aprcatg_pidm = apbcons_pidm)
         
 )
-
-/*---------------------------------
+/* w_CONSTITUENT.name not like '%DO%NOT%USE%' and
+ w_CONSTITUENT.PERSON_UID not in (select distinct s2.entity_uid from donor_category s2 where s2.entity_uid = w_CONSTITUENT.PERSON_UID and s2.donor_category = 'BAD') and
+ w_CONSTITUENT.PERSON_UID not in (SELECT bad_pidm FROM nsudev.nsu_alum_pidm where bad_pidm = w_CONSTITUENT.PERSON_UID)
+---------------------------------
 select * from w_constituent
 order by 1;
 
@@ -158,7 +164,7 @@ select * from all_tab_comments where table_name = 'APRCHIS';
 , w_nsu_email_slot as(
     SELECT * FROM(
         SELECT
-            goremal.goremal_pidm ENTITY_ID
+            goremal.goremal_pidm ENTITY_UID
             , pers.goremal_email_address PERS_EMAIL
             , nsu.goremal_email_address NSU_EMAIL
             , al.goremal_email_address AL_EMAIL
@@ -244,6 +250,7 @@ select * from all_tab_comments where table_name = 'APRCHIS';
 , w_relationship AS(
     SELECT
         aprchld_pidm ENTITY_UID
+        , aprxref_xref_code RELATION_SOURCE_CODE
         , nvl2(aprchld_xref_code,'CX','C') RELATION_SOURCE
         , nvl2(aprchld_xref_code,'Child/Cross Reference','Child') RELATION_SOURCE_DESC
         , aprxref_household_ind HOUSEHOLD_IND
@@ -271,6 +278,7 @@ select * from all_tab_comments where table_name = 'APRCHIS';
     UNION ALL
     SELECT
         aprcsps_pidm ENTITY_UID
+        , aprxref_xref_code RELATION_SOURCE_CODE
         , nvl2(aprcsps_xref_code,'SX','S') RELATION_SOURCE
         , nvl2(aprcsps_xref_code,'Spouse/Cross Reference','Spouse') RELATION_SOURCE_DESC
         , aprxref_household_ind HOUSEHOLD_IND
@@ -299,6 +307,7 @@ select * from all_tab_comments where table_name = 'APRCHIS';
     UNION ALL
     SELECT
         aprxref_pidm ENTITY_UID
+        , aprxref_xref_code RELATION_SOURCE_CODE
         , 'X' RELATION_SOURCE
         , 'Cross Reference' RELATION_SOURCE_DESC
         , aprxref_xref_code --aprxref_household_ind HOUSEHOLD_IND
@@ -322,7 +331,7 @@ select * from all_tab_comments where table_name = 'APRCHIS';
                     AND spriden_change_ind IS NULL
     )     
 )
---select * from w_relationship
+--select * from w_relationship;
 
 , w_degree_history AS(
     SELECT * FROM (    
@@ -744,9 +753,372 @@ GROUP BY entity_uid
 )
 --select * from w_recent_cons_years;
 , w_range_tot_gift AS(
-select 1 from dual
+    SELECT
+        agbgift_pidm ENTITY_UID
+        , TRIM(TO_CHAR(SUM(NVL(agrgdes_amt,0)), '999999990.99')) GIFT_AMT
+    FROM
+        agbgift
+        LEFT JOIN agrgdes
+            ON agbgift_pidm = agrgdes_pidm
+            AND agbgift_gift_no = agrgdes_gift_no
+    WHERE
+        agbgift_gift_date BETWEEN :parm_DT_GivingStart AND :parm_DT_GivingEnd
+    GROUP BY
+        agbgift_pidm
 )
-select * from w_range_tot_gift;
---w_range_tot_aux
-order by 1;
-select * from all_col_comments where table_name = 'SPBPERS';
+--select * from w_range_tot_gift;
+, w_range_tot_aux AS(
+    SELECT
+        agrgaux_pidm ENTITY_UID
+        , TRIM(TO_CHAR(SUM(NVL(agrgaux_dcpr_value,0)),'999999990.99')) GIFT_AMT
+    FROM
+        agrgaux
+    WHERE
+        agrgaux_auxl_value_date BETWEEN :parm_DT_GivingStart AND :parm_DT_GivingEnd
+    GROUP BY
+        agrgaux_pidm
+)
+--select * from w_range_tot_aux
+, w_spec_purpose AS(
+    SELECT
+        entity_uid
+        , NVL(special_purpose_type,'XXXXX')
+            || '-' || NVL(special_purpose_type_desc,'XXXXXXXXXXXXXXXXXXXXXXXXXX')
+            || '/' || NVL(special_purpose_group,'XXXXX')
+            || '-' || NVL(special_purpose_group_desc,'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+    FROM(
+        SELECT
+            aprpros_pidm ENTITY_UID
+            , aprpros_prtp_code SPECIAL_PURPOSE_TYPE
+            , atvprtp_desc SPECIAL_PURPOSE_TYPE_DESC
+            , aprpros_prcd_code SPECIAL_PURPOSE_GROUP
+            , atvprcd_desc SPECIAL_PURPOSE_GROUP_DESC
+            , ROW_NUMBER() OVER (PARTITION BY aprpros_pidm ORDER BY aprpros_date desc) RN
+        FROM
+            aprpros
+            JOIN atvprtp
+                ON aprpros_prtp_code = atvprtp_code
+            JOIN atvprcd
+                ON aprpros_prcd_code = atvprcd_code
+    )
+        
+    WHERE
+        rn = 1
+)
+--select * from w_spec_purpose
+--order by 1;
+
+select w_CONSTITUENT.PERSON_UID,
+       w_CONSTITUENT.ID,
+       w_CONSTITUENT.NAME,
+       w_CONSTITUENT.PREF_LAST_NAME,
+       w_CONSTITUENT.MAIDEN_LAST_NAME,
+       w_CONSTITUENT.SPOUSE_NAME,
+       w_relationship.related_id related_id,
+       --w_relationship.related_combined_name,
+       w_CONSTITUENT.PREF_DONOR_CATEGORY,
+       w_CONSTITUENT.PREF_DONOR_CATEGORY_DESC,
+       w_CONSTITUENT.EMAIL_PREFERRED_ADDRESS,
+       w_address.spraddr_street_line1 "STREET_LINE1",
+       w_address.spraddr_street_line2 "STREET_LINE2",
+       w_address.spraddr_city "CITY",
+       w_address.spraddr_stat_code "STATE_PROVINCE",
+       w_address.spraddr_zip "POSTAL_CODE",
+       w_address.spraddr_cnty_code "COUNTY",
+       w_address.spraddr_natn_code "NATION",
+       w_address.spraddr_atyp_code "ADDRESS_TYPE",
+       w_NSU_EXCLUSION_SLOT.NPH,
+       w_NSU_EXCLUSION_SLOT.NOC,
+       w_NSU_EXCLUSION_SLOT.NMC,
+       w_NSU_EXCLUSION_SLOT.NEM,
+       w_NSU_EXCLUSION_SLOT.NAM,
+       w_NSU_EXCLUSION_SLOT.NDN,
+       w_NSU_EXCLUSION_SLOT.NAK,
+       w_NSU_EXCLUSION_SLOT.NTP,
+       w_NSU_EXCLUSION_SLOT.AMS,
+       nvl(w_SALUTATION.CIFE,w_SALUTATION.SIFE) PREFERRED_FULL_w_SALUTATION,
+       nvl(w_SALUTATION.CIFL,w_SALUTATION.SIFL) PREFERRED_SHORT_w_SALUTATION,
+       w_SALUTATION.SIFE SIFE,
+       w_SALUTATION.SIFL SIFL,
+       w_ADVANCEMENT_RATING_SLOT.RATING_TYPE1,
+       w_ADVANCEMENT_RATING_SLOT.RATING_AMOUNT1,
+       w_ADVANCEMENT_RATING_SLOT.RATING1,
+       w_ADVANCEMENT_RATING_SLOT.RATING_LEVEL1,
+       w_ADVANCEMENT_RATING_SLOT.RATING_TYPE2,
+       w_ADVANCEMENT_RATING_SLOT.RATING_AMOUNT2,
+       w_ADVANCEMENT_RATING_SLOT.RATING2,
+       w_ADVANCEMENT_RATING_SLOT.RATING_LEVEL2,
+       w_ADVANCEMENT_RATING_SLOT.RATING_TYPE3,
+       w_ADVANCEMENT_RATING_SLOT.RATING_AMOUNT3,
+       w_ADVANCEMENT_RATING_SLOT.RATING3,
+       w_ADVANCEMENT_RATING_SLOT.RATING_LEVEL3,
+       w_recent_membership.membership_category "Membership_name",
+       w_recent_membership.membership_status "Membership_name",
+       w_recent_membership.membership_number "membership_number",
+       w_recent_membership.expiration_date "expiration_date",
+       w_won_membership.membership_category "w_WON_Membership_name",
+       w_won_membership.membership_status "w_WON_Membership_status",
+       w_won_membership.membership_number "w_WON_membership_number",
+       w_won_membership.expiration_date "WON_expiration_date",
+       w_fan_membership.membership_category "w_FAN_Membership_name",
+       w_fan_membership.membership_status "w_FAN_Membership_status",
+       w_fan_membership.membership_number "w_FAN_membership_number",
+       w_fan_membership.expiration_date "FAN_expiration_date",
+       w_NSU_EMAIL_SLOT.PERS_EMAIL,
+       w_NSU_EMAIL_SLOT.NSU_EMAIL,
+       w_NSU_EMAIL_SLOT.AL_EMAIL,
+       w_NSU_EMAIL_SLOT.BUS_EMAIL,
+       w_NSU_TELEPHONE_SLOT.PR_PHONE_NUMBER,
+       w_NSU_TELEPHONE_SLOT.PR_PRIMARY_IND,
+       w_NSU_TELEPHONE_SLOT.CL_PHONE_NUMBER,
+       w_NSU_TELEPHONE_SLOT.CL_PRIMARY_IND,
+       w_NSU_TELEPHONE_SLOT.B1_PHONE_NUMBER,
+       w_NSU_TELEPHONE_SLOT.B1_PRIMARY_IND,
+       trim(to_char(nvl(w_ANNUAL_GIVING_SLOT.TOTAL_PLEDGE_PAYMENTS1,0), '999999990.99')) "TOTAL_PLEDGE_PAYMENTS1",
+       trim(to_char(nvl(w_CONSTITUENT.LIFE_TOTAL_GIVING,0), '999999990.99')) "LIFE_TOTAL_GIVING",
+       trim(to_char(nvl(w_ytd.lifetime,0), '999999990.99')) "LIFE_TOTAL_GIVING_AUX",
+       w_ANNUAL_GIVING_SLOT.FISCAL_YEAR1,
+       trim(to_char(nvl(w_ANNUAL_GIVING_SLOT.TOTAL_GIVING1,0), '999999990.99')) "TOTAL_GIVING1",
+       NSUDEV.NSU_GET_HOUSEHOLD_GIVING_TOTAL(w_CONSTITUENT.PERSON_UID, 'ANNUAL') "ANNUAL_HOUSEHOLD_GIVING",
+       NSUDEV.NSU_GET_HOUSEHOLD_GIVING_TOTAL(w_CONSTITUENT.PERSON_UID, 'LIFETIME') "LIFETIME_HOUSEHOLD_GIVING",
+       w_RELATIONSHIP.RELATION_SOURCE,
+       w_RELATIONSHIP.RELATION_SOURCE_DESC,
+       w_RELATIONSHIP.COMBINED_MAILING_PRIORITY,
+       w_RELATIONSHIP.COMBINED_MAILING_PRIORITY_DESC,
+       w_RELATIONSHIP.HOUSEHOLD_IND,
+       w_relationship.related_id related_id,
+       w_range_tot_gift.gift_amt "DATE_RANGE_TOTAL_GIVING",
+       w_range_tot_aux.gift_amt "DATE_RANGE_TOTAL_AUX_AMT",
+       w_DEGREE_SLOT.DEGREE_1,
+       w_DEGREE_SLOT.DEGREE_DESC_1,
+       w_DEGREE_SLOT.ACADEMIC_YEAR_1,
+       w_DEGREE_SLOT.MAJOR_1,
+       w_DEGREE_SLOT.MAJOR_DESC_1,
+       w_DEGREE_SLOT.DEGREE_2,
+       w_DEGREE_SLOT.DEGREE_DESC_2,
+       w_DEGREE_SLOT.ACADEMIC_YEAR_2,
+       w_DEGREE_SLOT.MAJOR_2,
+       w_DEGREE_SLOT.MAJOR_DESC_2,
+       w_DEGREE_SLOT.DEGREE_3,
+       w_DEGREE_SLOT.DEGREE_DESC_3,
+       w_DEGREE_SLOT.ACADEMIC_YEAR_3,
+       w_DEGREE_SLOT.MAJOR_3,
+       w_DEGREE_SLOT.MAJOR_DESC_3,
+       w_spec_purpose.entity_uid "SPEC_PURPOSE_TYPE_GROUP",
+       w_apbghis.apbghis_total_no_gifts total_no_gifts,
+       w_apbghis.apbghis_high_gift_amt high_gift_amt,
+       w_apbghis.apbghis_last_gift_date last_gift_date,
+       w_CONSTITUENT.DECEASED_IND,
+       w_spbpers.SPBPERS_BIRTH_DATE date_of_birth,
+       w_JFSGD.rating JFSG_estimated_capacity,
+       nvl(w_ytd.ytd_1,0) "DED_AMT_w_YTD_1",
+       nvl(w_ytd.ytd_2,0) "DED_AMT_w_YTD_2",
+       nvl(w_ytd.ytd_3,0) "DED_AMT_w_YTD_3",
+       nvl(w_ytd.ytd_4,0) "DED_AMT_w_YTD_4",
+       w_employment.employer_name employer,
+       w_employment.position_title position,
+        nvl2(SPBPERS_VERA_IND, 'Y','N') Veteran_ind,
+        w_guriden.guriden_desc,
+       w_long_years_given.recent_consecutive_years longest_cons_years_given,
+       w_recent_cons_years.recent_consecutive_years recent_consecutive_years
+       -- (select max(l) recent_consecutive_years from ( select distinct spriden_pidm, agbgift.AGBGIFT_FISC_CODE, level l from agbgift join spriden on spriden_pidm = agbgift_pidm and spriden_change_ind is null where AGBGIFT_FISC_CODE <= to_char(:parm_DT_GivingEnd, 'YYYY') connect by prior spriden_pidm = spriden_pidm and prior agbgift_fisc_code = agbgift_fisc_code -1 ) group by spriden_pidm having spriden_pidm = w_CONSTITUENT.PERSON_UID) longest_cons_years_given,
+       -- (select max(l) keep (dense_rank first order by agbgift_fisc_code desc) recent_consecutive_years from ( select distinct spriden_pidm, agbgift.AGBGIFT_FISC_CODE, level l from agbgift join spriden on spriden_pidm = agbgift_pidm and spriden_change_ind is null where AGBGIFT_FISC_CODE <= to_char(:parm_DT_GivingEnd, 'YYYY') connect by prior spriden_pidm = spriden_pidm and prior agbgift_fisc_code = agbgift_fisc_code -1 ) group by spriden_pidm having spriden_pidm = w_CONSTITUENT.PERSON_UID) recent_consecutive_years
+
+  from
+   w_CONSTITUENT,
+   w_NSU_EXCLUSION_SLOT,
+   w_ANNUAL_GIVING_SLOT,
+   w_ADVANCEMENT_RATING_SLOT,
+   w_NSU_EMAIL_SLOT,
+   w_NSU_TELEPHONE_SLOT,
+   w_RELATIONSHIP,
+   w_DEGREE_SLOT,
+   w_SPBPERS,
+   w_APBGHIS,
+   w_amrstaf,
+   w_GURIDEN,
+   w_recent_membership,
+   w_won_membership,
+   w_fan_membership,
+   w_SALUTATION,
+   w_ytd,
+   w_JFSGD,
+   w_employment,
+   w_address,
+   w_long_years_given,
+   w_recent_cons_years,
+   w_range_tot_gift,
+   w_range_tot_aux,
+   w_spec_purpose
+
+ where 
+ --w_CONSTITUENT.name not like '%DO%NOT%USE%' and
+ --w_CONSTITUENT.PERSON_UID not in (select distinct s2.entity_uid from donor_category s2 where s2.entity_uid = w_CONSTITUENT.PERSON_UID and s2.donor_category = 'BAD') and
+ --w_CONSTITUENT.PERSON_UID not in (SELECT bad_pidm FROM nsudev.nsu_alum_pidm where bad_pidm = w_CONSTITUENT.PERSON_UID) and
+ (
+      ( w_CONSTITUENT.PERSON_UID = w_NSU_EXCLUSION_SLOT.ENTITY_UID (+)
+         and w_CONSTITUENT.PERSON_UID = w_ANNUAL_GIVING_SLOT.ENTITY_UID (+)
+         and w_CONSTITUENT.PERSON_UID = w_ADVANCEMENT_RATING_SLOT.ENTITY_UID (+)
+         and w_CONSTITUENT.PERSON_UID = w_NSU_EMAIL_SLOT.ENTITY_UID (+)
+         and w_CONSTITUENT.PERSON_UID = w_NSU_TELEPHONE_SLOT.ENTITY_UID (+)
+         and w_CONSTITUENT.PERSON_UID = w_RELATIONSHIP.ENTITY_UID (+)
+         and w_CONSTITUENT.PERSON_UID = w_DEGREE_SLOT.PERSON_UID (+)
+         and w_CONSTITUENT.person_uid = w_apbghis.apbghis_pidm (+)
+         and w_CONSTITUENT.person_uid = w_spbpers.spbpers_pidm (+)
+         and w_CONSTITUENT.person_uid = w_amrstaf.amrstaf_pidm (+)
+         and w_amrstaf.amrstaf_iden_code = w_guriden.guriden_iden_code (+)
+         and w_CONSTITUENT.PERSON_UID = w_recent_membership.entity_uid (+)
+         and w_CONSTITUENT.PERSON_UID = w_won_membership.entity_uid (+)
+         and w_CONSTITUENT.PERSON_UID = w_fan_membership.entity_uid (+)
+         and w_CONSTITUENT.PERSON_UID = w_SALUTATION.ENTITY_UID (+)
+         and w_CONSTITUENT.PERSON_UID = w_ytd.entity_uid (+)
+         and w_CONSTITUENT.PERSON_UID = w_JFSGD.entity_uid (+)
+         and w_CONSTITUENT.PERSON_UID = w_employment.person_uid (+)
+         and w_CONSTITUENT.PERSON_UID = w_address.spraddr_pidm (+)
+         and w_CONSTITUENT.PERSON_UID = w_long_years_given.spriden_pidm (+)
+         and w_CONSTITUENT.PERSON_UID = w_recent_cons_years.spriden_pidm (+)
+         and w_CONSTITUENT.PERSON_UID = w_range_tot_gift.entity_uid (+)
+         and w_CONSTITUENT.PERSON_UID = w_range_tot_aux.entity_uid (+)
+         and w_CONSTITUENT.PERSON_UID = w_spec_purpose.entity_uid (+)
+      )      
+and   ( --w_CONSTITUENT.DECEASED_IND = 'N' and
+            'SX' = w_RELATIONSHIP.RELATION_SOURCE (+)
+      and   'Y' = w_DEGREE_SLOT.INSTITUTION_IND (+)
+      and   (     :cb_leadership = 1
+            or    (     exists   (  select 'X' "calc1"
+                                    from apracld
+                                    where    apracld_lead_code = :parm_MC_leadership--.STVLEAD_CODE
+                                       and   apracld_pidm = w_CONSTITUENT.PERSON_UID
+                                 )
+                  and   :cb_leadership = 0
+                  )
+            )
+and   (  :parm_CB_AllZipCodes = 1
+            or (     :parm_CB_ignore_zip_use_state = 1
+               and   substr(w_address.spraddr_stat_code,1,2) = :parm_MC_StateCode--.State
+               )
+            or substr(w_address.spraddr_zip,1,5) = :parm_MC_ZipCode--.ZipCode
+            )
+            
+      and   (  :parm_CB_enter_name = 1
+            or    upper(w_address.spraddr_city) = upper(:parm_EB_City)
+            )
+
+      and   (  :parm_CB_AllActivies = 1
+            or exists ( select 'X' "calc1"
+                      from apracyr
+                     where apracyr_actc_code = :parm_MC_ActivityCode--.ActivityCode
+                           and (( :cb_Activity_Years = 0 and apracyr_year = :param_lb_activity_years)--.APRACYR_YEAR)
+                           or :cb_Activity_Years = 1)
+                           and apracyr_pidm =w_CONSTITUENT.PERSON_UID )
+            or exists ( select 'X' "calc1"
+                      from apracty
+                     where apracty_actc_code = :parm_MC_ActivityCode--.ActivityCode
+                           and apracty_pidm =w_CONSTITUENT.PERSON_UID ) )
+
+         and ( :parm_CB_AllGCranges = 1
+           or w_ADVANCEMENT_RATING_SLOT.RATING_AMOUNT1 = :parm_LB_GiftCapRange)--.Code )
+         and ( :parm_CB_AllWEdesignations = 1
+           or w_ADVANCEMENT_RATING_SLOT.RATING_LEVEL2 = :parm_LB_WealthEngineDesg)--.Main )
+         and ( :parm_CB_AllExclusions = 1
+           or w_NSU_EXCLUSION_SLOT.NPH = :parm_MC_ExclusionCode--.ExclusionCode
+           or w_NSU_EXCLUSION_SLOT.NOC = :parm_MC_ExclusionCode--.ExclusionCode
+           or w_NSU_EXCLUSION_SLOT.NMC = :parm_MC_ExclusionCode--.ExclusionCode
+           or w_NSU_EXCLUSION_SLOT.NEM = :parm_MC_ExclusionCode--.ExclusionCode
+           or w_NSU_EXCLUSION_SLOT.NAM = :parm_MC_ExclusionCode--.ExclusionCode
+           or w_NSU_EXCLUSION_SLOT.NDN = :parm_MC_ExclusionCode--.ExclusionCode
+           or w_NSU_EXCLUSION_SLOT.NAK = :parm_MC_ExclusionCode--.ExclusionCode
+           or w_NSU_EXCLUSION_SLOT.NTP = :parm_MC_ExclusionCode--.ExclusionCode
+           or w_NSU_EXCLUSION_SLOT.AMS = :parm_MC_ExclusionCode)--.ExclusionCode )
+         and ( :parm_CB_HouseholdInd = 1
+           or w_RELATIONSHIP.HOUSEHOLD_IND = :parm_LB_HouseholdInd)--.Main )
+         and ( :parm_CB_AllCountyCodes = 1
+           or w_address.spraddr_cnty_code = :parm_MC_CountyCode)--.CountyCode )
+         and ( :parm_CB_AllDegrees = 1
+           or w_DEGREE_SLOT.DEGREE_1 = :parm_MC_Degrees--.DegreeCode
+           or w_DEGREE_SLOT.DEGREE_2 = :parm_MC_Degrees--.DegreeCode
+           or w_DEGREE_SLOT.DEGREE_3 = :parm_MC_Degrees)--.DegreeCode )
+         and ( :parm_CB_GradYears = 1
+           or w_DEGREE_SLOT.ACADEMIC_YEAR_1 = :parm_LB_GradYear--.AbbrevInd
+           or w_DEGREE_SLOT.ACADEMIC_YEAR_2 = :parm_LB_GradYear--.AbbrevInd
+           or w_DEGREE_SLOT.ACADEMIC_YEAR_3 = :parm_LB_GradYear)--.AbbrevInd )
+         and ( :parm_CB_AllMajors = 1
+           or w_DEGREE_SLOT.MAJOR_1 = :parm_MC_Major--.MajorCode
+           or w_DEGREE_SLOT.MAJOR_2 = :parm_MC_Major--.MajorCode
+           or w_DEGREE_SLOT.MAJOR_3 = :parm_MC_Major)--.MajorCode )
+         and ( :parm_CB_Ignore_Degree_Dates = 1
+           or w_DEGREE_SLOT.DEGREE_DATE_1 between :parm_DT_DegreeDateStart and :parm_DT_DegreeDateEnd
+           or w_DEGREE_SLOT.DEGREE_DATE_2 between :parm_DT_DegreeDateStart and :parm_DT_DegreeDateEnd
+           or w_DEGREE_SLOT.DEGREE_DATE_3 between :parm_DT_DegreeDateStart and :parm_DT_DegreeDateEnd )
+         and ( ( :parm_CB_AllDonorCats = 1 )
+         
+           or exists ( select 'x' "calc1"
+                        FROM aprcatg DONOR_CATEGORY
+                        WHERE donor_category.aprcatg_pidm = w_constituent.person_uid
+                            AND donor_category.aprcatg_donr_code = :parm_MC_DonorCats) ) --.DonorCatCode ) )
+                      
+--                      from ODSMGR.DONOR_CATEGORY DONOR_CATEGORY
+--                     where DONOR_CATEGORY.ENTITY_UID = w_CONSTITUENT.PERSON_UID
+--                           and DONOR_CATEGORY.DONOR_CATEGORY = :parm_MC_DonorCats.DonorCatCode ) )
+         
+         and ( ( :parm_CB_SP_Types = 1 )
+           or exists ( select 'x' "calc1"
+                        FROM aprpros SPECIAL_PURPOSE_GROUP
+                        WHERE special_purpose_group.aprpros_pidm = w_constituent.person_uid
+                            AND special_purpose_group.aprpros_prtp_code = :parm_MC_SP_Types) ) --.SpecialPurCode ) )
+                            
+--                      from ODSMGR.SPECIAL_PURPOSE_GROUP SPECIAL_PURPOSE_GROUP
+--                     where SPECIAL_PURPOSE_GROUP.ENTITY_UID = w_CONSTITUENT.PERSON_UID
+--                           and SPECIAL_PURPOSE_GROUP.SPECIAL_PURPOSE_TYPE = :parm_MC_SP_Types.SpecialPurCode ) )
+                           
+         and ( ( :parm_CB_SP_Groups = 1 )
+           or exists ( select 'x' "calc1"
+                        FROM aprpros SPECIAL_PURPOSE_GROUP
+                        WHERE special_purpose_group.aprpros_pidm = w_constituent.person_uid
+                            AND special_purpose_group.aprpros_prcd_code = :parm_MC_SP_Groups) ) --.SpecialPurCode ) )
+                            
+--                      from ODSMGR.SPECIAL_PURPOSE_GROUP SPECIAL_PURPOSE_GROUP
+--                     where SPECIAL_PURPOSE_GROUP.ENTITY_UID = w_CONSTITUENT.PERSON_UID
+--                           and SPECIAL_PURPOSE_GROUP.SPECIAL_PURPOSE_GROUP = :parm_MC_SP_Groups.SpecialPurCode ) )
+                           
+         and ( ( :parm_CB_PrimSpouse_Unmarried = 1 )
+           or ( w_RELATIONSHIP.RELATION_SOURCE = 'SX'
+             and w_RELATIONSHIP.COMBINED_MAILING_PRIORITY = 'P' )
+           or not exists ( select 'x' "calc1"
+                            FROM w_relationship RELATIONSHIP1
+                            WHERE relationship1.entity_uid = w_constituent.person_uid
+                                AND relationship1.relation_source = 'SX'
+                                AND relationship1.relation_source_code = 'SP1' ) )
+                                
+--                          from ODSMGR.RELATIONSHIP RELATIONSHIP1
+--                         where RELATIONSHIP1.ENTITY_UID = w_CONSTITUENT.PERSON_UID
+--                               and RELATIONSHIP1.RELATION_SOURCE = 'SX'
+--                               and RELATIONSHIP1.RELATED_CROSS_REFERENCE = 'SP1' ) )
+
+         and ( ( :parm_CB_AllMailCodes = 1 )
+           or exists ( select 'x' "calc1"
+                        FROM aprmail
+                        WHERE aprmail_pidm = w_constituent.person_uid
+                            and aprmail_mail_code = :parm_MB_mail_codes) ) --.MailCode ) )
+                            
+--                      from ODSMGR.MAIL MAIL
+--                     where MAIL.ENTITY_UID = w_CONSTITUENT.PERSON_UID
+--                           and MAIL.MAIL = :parm_MC_mail_codes.MailCode ) )
+                           
+         and ((:parm_CB_deceased = 1) or nvl(w_spbpers.SPBPERS_DEAD_IND,'N') = 'N')
+         )
+         and (nvl2(SPBPERS_VERA_IND, 'Y','N') = :lb_veteran or :lb_veteran = 'All')
+         and ((:parm_CB_Ignore_Gift_Dates = 1) 
+                or exists ( select 'x'
+                            FROM agbgift
+                            WHERE agbgift_pidm = w_constituent.person_uid
+                                AND agbgift_gift_date BETWEEN :parm_DT_GivingStart AND :parm_DT_GivingEnd))
+                                
+--                                                               from gift g2
+--                                                               where g2.entity_uid = w_CONSTITUENT.PERSON_UID
+--                                                               and g2.GIFT_DATE between :parm_DT_GivingStart and :parm_DT_GivingEnd))
+
+
+        -- and rownum <= :parm_ED_rownum
+   )
+         --and :parm_BT_ViewQV is not null

@@ -1,12 +1,16 @@
 with
-w_range_tot_gift as
+w_spec_purpose as
 (
-select
-   entity_uid,
-   trim(to_char(sum(nvl(gift.gift_amount,0)), '999999990.99')) gift_amt
-from gift
-where gift_date between :parm_DT_GivingStart and :parm_DT_GivingEnd
+SELECT entity_uid, max(nvl(SPECIAL_PURPOSE_TYPE,'XXXXX')
+                          || '-' || nvl(SPECIAL_PURPOSE_TYPE_DESC,'XXXXXXXXXXXXXXXXXXXXXXXXXX')
+                          || '/' || nvl(SPECIAL_PURPOSE_GROUP,'XXXXX')
+                          || '-' || nvl(SPECIAL_PURPOSE_GROUP_DESC,'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')) keep (dense_rank first order by SPECIAL_PURPOSE_DATE desc, special_purpose_type) spec_purpose
+FROM special_purpose_group
 group by entity_uid
 )
+select * from w_spec_purpose
+order by 1;
 
-select * from w_range_tot_gift;
+
+select * from mail;
+select * from aprmail;
