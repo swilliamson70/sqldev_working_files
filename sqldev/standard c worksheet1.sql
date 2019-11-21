@@ -1,52 +1,67 @@
 
 declare
-  p_activity_codes          VARCHAR2(60); -- parm_MC_ActivityCode
+  p_activity_codes          VARCHAR2(60) ; --:= 'ADDJAZZ,ADDBAND,ADDNOSO,ADMSOCC,'; -- parm_MC_ActivityCode
   p_all_activities          VARCHAR2(10) := '1'; -- parm_CB_AllActivities
-  p_activity_years          VARCHAR2(60); -- parm_lb_activity_years
+  p_activity_years          VARCHAR2(60) ; --:= '1988,'; -- parm_lb_activity_years
   p_all_years               VARCHAR2(10) := '1'; -- cb_activity_years
-  p_leadership_codes        VARCHAR2(60); -- parm_MC_leadership
+  p_leadership_codes        VARCHAR2(60) ;--:= 'PRES,'; -- parm_MC_leadership
   p_all_leadership          VARCHAR2(10) := '1'; -- cb_leadership
 
---Degree Info
-  p_degree_date_start       DATE; -- parm_DT_DegreeDateStart
-  p_degree_date_end         DATE; -- parm_DT_DegreeDateEnd
+--Degree Info 
+  p_degree_date_start       DATE;--        := to_date('01-JAN-2019','DD-MON-YYYY'); -- parm_DT_DegreeDateStart
+  p_degree_date_end         DATE;--        := to_date('31-DEC-2019','DD-MON-YYYY'); -- parm_DT_DegreeDateEnd
   p_ignore_degree_dates     VARCHAR2(10) := '1'; -- parm_CB_Ignore_Degree_Dates
-  p_grad_years              VARCHAR2(60); -- parm_LB_GradYear
+  -- these are the academic years not the years in which people graduated
+  p_grad_years              VARCHAR2(60) ;--:= '2008,2009,'; -- parm_LB_GradYear
   p_all_grad_years          VARCHAR2(10) := '1'; -- parm_CB_GradYears
-  p_degrees                 VARCHAR2(60); -- parm_MC_Degrees
+
+  p_degrees                 VARCHAR2(60) ; --:= 'BBA,MBA,'; -- parm_MC_Degrees
   p_all_degrees             VARCHAR2(10) := '1'; -- parm_CB_AllDegrees
-  p_majors                  VARCHAR2(60); -- parm_MC_Major
+  
+  p_majors                  VARCHAR2(60) ;--:= '03IA,06IA,'; -- parm_MC_Major
   p_all_majors              VARCHAR2(10) := '1'; -- parm_CB_AllMajors
 
 --Demographics
-  p_deceased                VARCHAR2(10) := '1'; -- parm_CB_deceased
-  p_veteran                 VARCHAR2(60) := 'All'; -- lb_veteran
+  p_deceased                VARCHAR2(10) ;--:= '1'; -- parm_CB_deceased - Include Deceased?
+  
+  p_veteran                 VARCHAR2(60) := 'All'; -- lb_veteran (All, Y, N)
+  
   p_prim_spouse_unmarried   VARCHAR2(10) := '1'; -- parm_CB_PrimSpouse_Unmarried
-  p_household_ind           VARCHAR2(60); -- parm_LB_HouseholdInd
-  p_ignore_household_ind    VARCHAR2(10) := '1'; -- parm_CB_HouseholdInd
-  p_zipcodes                VARCHAR2(60); -- parm_MC_ZipCode
+  
+  p_household_ind           VARCHAR2(60) := 'All'; -- parm_LB_HouseholdInd (All, Y,N)
+  --p_ignore_household_ind    VARCHAR2(10) := '1'; -- parm_CB_HouseholdInd - made redundant
+  
+  p_zipcodes                VARCHAR2(60) ; --:= '74464,74015,'; -- parm_MC_ZipCode
   p_all_zipcodes            VARCHAR2(10) := '1'; -- parm_CB_AllZipCodes
-  p_ignore_zip              VARCHAR2(10) := '1'; -- parm_CB_ignore_zip_use_state
-  p_state_codes             VARCHAR2(60); -- parm_MC_StateCode
-  p_city                    VARCHAR2(30); -- parm_EB_City
-  p_use_city                VARCHAR2(10) := '1'; -- parm_CB_enter_name
-  p_county_codes            VARCHAR2(60); -- parm_MC_CountryCode
+  
+  p_ignore_zip_use_state    VARCHAR2(10) ;--:= '1'; -- parm_CB_ignore_zip_use_state
+  p_state_codes             VARCHAR2(60) := 'OK,';-- := 'AK,FL,'; -- parm_MC_StateCode
+  
+  p_city                    VARCHAR2(30) ; --:= 'Los Angeles'; -- parm_EB_City
+  p_use_city                VARCHAR2(10) := '1'; -- parm_CB_enter_name - 0 if use city is overriding state/zip/county
+  p_county_codes            VARCHAR2(60) ;--:= 'OK001,OK002,OK003,'; -- parm_MC_CountryCode
   p_all_counties            VARCHAR2(10) := '1'; -- parm_CB_AllCountyCodes
 
 --Donor Information
-  p_donor_cats              VARCHAR2(60); -- parm_MC_DonorCats
+  p_donor_cats              VARCHAR2(60) ;--:= 'EMPC,EMPR,'; -- parm_MC_DonorCats
   p_all_donor_cats          VARCHAR2(10) := '1'; -- parm_CB_AllDonorCats
-  p_gift_capacity           VARCHAR2(60); -- parm_LB_GiftCapRange
+  
+  p_gift_capacity           VARCHAR2(60) ; --:= '5K,50K,'; -- parm_LB_GiftCapRange -- advancement_rating_slot type1
   p_all_gift_capacities     VARCHAR2(10) := '1'; -- parm_CB_AllGCrranges
-  p_wealth_engine_desg      VARCHAR2(60); -- parm_LB_WealthEngineDesg
+  
+  p_wealth_engine_desg      VARCHAR2(60) ; --:= 'A,C,'; -- parm_LB_WealthEngineDesg -- advancement_rating_slot type2
   p_all_wealth_engine_desg  VARCHAR2(10) := '1'; -- parm_CB_AllWEdesignations
-  p_spec_purpose_types      VARCHAR2(60); -- parm_MC_SP_Types
+  
+  p_spec_purpose_types      VARCHAR2(60) ;--:= 'NSUEG,'; -- parm_MC_SP_Types
   p_all_spec_purpose_types  VARCHAR2(10) := '1'; -- parm_CB_SP_Types
-  p_spec_purpose_groups     VARCHAR2(60); -- parm_MC_SP_Groups
+  
+  p_spec_purpose_groups     VARCHAR2(60) ; --:= 'ACAFF,AWARD,BT,ED,'; -- parm_MC_SP_Groups
   p_all_spec_purpose_groups VARCHAR2(10) := '1'; -- parm_CB_SP_Groups
-  p_exclusion_codes         VARCHAR2(60); -- parm_MC_ExclusionCode
+  
+  p_exclusion_codes         VARCHAR2(60) ; --:= 'AMS,NAK,'; -- parm_MC_ExclusionCode
   p_all_exclusion_codes     VARCHAR2(10) := '1'; -- parm_CB_AllExclusions
-  p_mail_codes              VARCHAR2(60); -- parm_MC_mail_codes
+  
+  p_mail_codes              VARCHAR2(60) ; --:= 'ACK,ACL,ATX,'; -- parm_MC_mail_codes
   p_all_mail_codes          VARCHAR2(10) := '1'; -- parm_CB_AllMailCodes
 
 -- Gift Dates
@@ -91,7 +106,16 @@ declare
 
         )
 --select * from w_lifetime_giving;        
-        , */ w_spouse AS(
+        , w_agbgift AS(
+            SELECT 
+                agbgift_pidm
+                , agbgift_gift_no
+                , agbgift_gift_date
+                , agbgift_fisc_code
+            FROM
+                agbgift
+        )
+        ,*/   w_spouse AS(
                     SELECT /*+ MATERIALIZE */
                         *
                     FROM(
@@ -133,7 +157,7 @@ declare
                 , atvdonr_desc      PREF_DONOR_CATEGORY_DESC
                 , goremal_email_address EMAIL_PREFERRED_ADDRESS
               --  , w_lifetime_giving.lifetime_giving LIFE_TOTAL_GIVING
-                , nvl(spbpers_dead_ind,'N') DECEASED_IND
+              --  , nvl(spbpers_dead_ind,'N') DECEASED_IND -- redundant
             FROM
                 apbcons 
                 JOIN spriden
@@ -142,10 +166,10 @@ declare
                     and  f_format_name(apbcons_pidm,'LFMI') NOT LIKE '%DO%NOT%USE%'
                     AND apbcons_pidm NOT IN (SELECT bad_pidm FROM nsudev.nsu_alum_pidm WHERE bad_pidm = apbcons_pidm)
                     AND apbcons_pidm NOT IN (SELECT aprcatg_pidm FROM aprcatg WHERE aprcatg_pidm = apbcons_pidm AND aprcatg_donr_code = 'BAD') 
-                JOIN(   SELECT spbpers_pidm, spbpers_dead_ind
-                        FROM spbpers
-                    )
-                    ON spbpers_pidm = apbcons_pidm 
+--                JOIN(   SELECT spbpers_pidm, spbpers_dead_ind
+--                        FROM spbpers
+--                    )
+--                    ON spbpers_pidm = apbcons_pidm 
                 LEFT JOIN(
                         SELECT aprcatg_pidm, aprcatg_donr_code, atvdonr_desc, row_number() OVER (PARTITION BY aprcatg_pidm ORDER BY atvdonr_rpt_seq_ind) rn
                         FROM aprcatg JOIN atvdonr ON aprcatg_donr_code = atvdonr_code
@@ -321,9 +345,7 @@ declare
             ) B
                 ON a.aprchis_pidm = b.check_pidm
         ) --end w_annual_giving_slot
-
-
-       
+    
         , w_advancement_rating_slot AS(
             SELECT
                 entity_uid
@@ -704,7 +726,7 @@ declare
             SELECT
                 spbpers_pidm
                 , spbpers_birth_date
-                , spbpers_dead_ind
+                , spbpers_dead_ind 
                 , spbpers_vera_ind
 --                Veteran Category: 
 --                    (NULL) Not a Veteran, 
@@ -975,10 +997,15 @@ declare
         , w_spec_purpose AS(
             SELECT
                 entity_uid
-                , NVL(special_purpose_type,'XXXXX')
-                    || '-' || NVL(special_purpose_type_desc,'XXXXXXXXXXXXXXXXXXXXXXXXXX')
-                    || '/' || NVL(special_purpose_group,'XXXXX')
-                    || '-' || NVL(special_purpose_group_desc,'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+--                , NVL(special_purpose_type,'XXXXX')
+--                    || '-' || NVL(special_purpose_type_desc,'XXXXXXXXXXXXXXXXXXXXXXXXXX')
+--                    || '/' || NVL(special_purpose_group,'XXXXX')
+--                    || '-' || NVL(special_purpose_group_desc,'XXXXXXXXXXXXXXXXXXXXXXXXXXXXXX')
+                    , SPECIAL_PURPOSE_TYPE
+                    , SPECIAL_PURPOSE_TYPE_DESC
+                    , SPECIAL_PURPOSE_GROUP
+                    , SPECIAL_PURPOSE_GROUP_DESC
+
             FROM(
                 SELECT
                     aprpros_pidm ENTITY_UID
@@ -997,7 +1024,21 @@ declare
     
             WHERE
                 rn = 1
-        ) -- end w_spec_purpose    
+        ) -- end w_spec_purpose
+        , w_activities as(
+            SELECT
+                apracyr_pidm        PERSON_UID
+                , apracyr_year      YEAR
+                , apracyr_actc_code ACTIVITY_CODE
+            FROM 
+                apracyr -- Special Activity Repeating Table                
+        )
+        , w_aprmail AS(
+            SELECT aprmail_pidm
+                , aprmail_mail_code 
+            FROM aprmail
+        )
+         
 ---
 
         SELECT 
@@ -1021,26 +1062,27 @@ declare
             , w_address.spraddr_natn_code "NATION"
             , w_address.spraddr_atyp_code "ADDRESS_TYPE"
 
-            , w_nsu_exclusion_slot.nph
-            , w_nsu_exclusion_slot.noc
-            , w_nsu_exclusion_slot.nmc
-            , w_nsu_exclusion_slot.nem
-            , w_nsu_exclusion_slot.nam
-            , w_nsu_exclusion_slot.ndn
-            , w_nsu_exclusion_slot.nak
-            , w_nsu_exclusion_slot.ntp
-            , w_nsu_exclusion_slot.ams
+            , w_nsu_exclusion_slot.nph NPH
+            , w_nsu_exclusion_slot.noc NOC
+            , w_nsu_exclusion_slot.nmc NMC
+            , w_nsu_exclusion_slot.nem NEM
+            , w_nsu_exclusion_slot.nam NAM
+            , w_nsu_exclusion_slot.ndn NDN
+            , w_nsu_exclusion_slot.nak NAK
+            , w_nsu_exclusion_slot.ntp NTP
+            , w_nsu_exclusion_slot.ams AMS
+            , mail_codes.code_list MAIL_CODES
 
             , nvl(w_SALUTATION.CIFE,w_SALUTATION.SIFE) PREFERRED_FULL_w_SALUTATION
             , nvl(w_SALUTATION.CIFL,w_SALUTATION.SIFL) PREFERRED_SHORT_w_SALUTATION
             , w_SALUTATION.SIFE SIFE
             , w_SALUTATION.SIFL SIFL
             
-            , w_advancement_rating_slot.rating_type1
+            , w_advancement_rating_slot.rating_type1 RATING_TYPE1
             , w_advancement_rating_slot.rating_amount1
             , w_advancement_rating_slot.rating1
             , w_advancement_rating_slot.rating_level1
-            , w_advancement_rating_slot.rating_type2
+            , w_advancement_rating_slot.rating_type2 RATING_TYPE2
             , w_advancement_rating_slot.rating_amount2
             , w_advancement_rating_slot.rating2
             , w_advancement_rating_slot.rating_level2
@@ -1089,7 +1131,7 @@ declare
             , w_relationship.relation_source_desc
             , w_relationship.combined_mailing_priority
             , w_relationship.combined_mailing_priority_desc
-            , w_relationship.household_ind
+            , w_relationship.household_ind HOUSEHOLD_IND 
             , TRIM(TO_CHAR(NVL(w_range_tot_gift.gift_amt,0), '999999990.99')) DATE_RANGE_TOTAL_GIVING
             , TRIM(TO_CHAR(NVL(w_range_tot_aux.gift_amt,0), '999999990.99')) DATE_RANGE_TOTAL_AUX_AMT
             , w_degree_slot.degree_1
@@ -1107,25 +1149,34 @@ declare
             , w_degree_slot.academic_year_3 
             , w_degree_slot.major_3
             , w_degree_slot.major_desc_3
-            , w_spec_purpose.entity_uid SPEC_PURPOSE_TYPE_GROUP
-            , w_apbghis.apbghis_total_no_gifts total_no_gifts
-            , w_apbghis.apbghis_high_gift_amt high_gift_amt
-            , w_apbghis.apbghis_last_gift_date last_gift_date
-            , w_CONSTITUENT.DECEASED_IND
-            , w_spbpers.SPBPERS_BIRTH_DATE date_of_birth
-            , w_JFSGD.rating JFSG_estimated_capacity
+            --, w_spec_purpose.entity_uid SPEC_PURPOSE_TYPE_GROUP
+            , w_spec_purpose.special_purpose_type SPECIAL_PURPOSE_TYPE
+            , w_spec_purpose.special_purpose_type_desc SPECIAL_PURPOSE_TYPE_DESC
+            , w_spec_purpose.special_purpose_group SPECIAL_PURPOSE_GROUP
+            , w_spec_purpose.special_purpose_group_desc SPECIAL_PURPOSE_GROUP_DESC
+            
+            , w_apbghis.apbghis_total_no_gifts TOTAL_NO_GIFTS
+            , w_apbghis.apbghis_high_gift_amt HIGH_GIFT_AMT
+            , w_apbghis.apbghis_last_gift_date LAST_GIFT_DATE
+            --, w_CONSTITUENT.DECEASED_IND
+            , NVL(w_spbpers.spbpers_dead_ind,'N') DECEASED_IND
+            , w_spbpers.spbpers_birth_date DATE_OF_BIRTH
+            , w_JFSGD.rating JFSG_ESTIMATED_CAPACITY
 
             , nvl(w_ytd.ytd_1,0) DED_AMT_w_YTD_1
             , nvl(w_ytd.ytd_2,0) DED_AMT_w_YTD_2
             , nvl(w_ytd.ytd_3,0) DED_AMT_w_YTD_3
             , nvl(w_ytd.ytd_4,0) DED_AMT_w_YTD_4
             
-            , w_employment.employer_name employer
-            , w_employment.position_title position
-            , nvl2(SPBPERS_VERA_IND, 'Y','N') Veteran_ind
+            , w_employment.employer_name EMPLOYER
+            , w_employment.position_title POSITION
+            , NVL2(SPBPERS_VERA_IND, 'Y','N') VETERAN_IND
             , w_guriden.guriden_desc
-            , w_long_years_given.recent_consecutive_years longest_cons_years_given
-            , w_recent_cons_years.recent_consecutive_years recent_consecutive_years
+            , w_long_years_given.recent_consecutive_years LONGEST_CONS_YEARS_GIVEN
+            , w_recent_cons_years.recent_consecutive_years RECENT_CONSECUTIVE_YEARS
+            
+            , w_activities.activities ACTIVITIES
+            , leadership.roles LEADERSHIP_ROLES
 
         FROM
             w_constituent
@@ -1181,37 +1232,198 @@ declare
                     ON w_constituent.person_uid = w_range_tot_aux.entity_uid
                 LEFT JOIN w_spec_purpose
                     ON w_constituent.person_uid = w_spec_purpose.entity_uid
+                LEFT JOIN (
+                            SELECT person_uid
+                                , LISTAGG(activities,',') WITHIN GROUP( ORDER BY activities) ACTIVITIES
+                            FROM(
+                                SELECT w_activities.person_uid 
+                                    , w_activities.activity_code 
+                                    || '(' || LISTAGG(w_activities.year,',') WITHIN GROUP( ORDER BY w_activities.year) || ')' ACTIVITIES
+                                FROM w_activities                            
+                                GROUP BY w_activities.person_uid, w_activities.activity_code
+                            ) GROUP BY person_uid     
+                    ) W_ACTIVITIES ON w_constituent.person_uid = w_activities.person_uid
+                LEFT JOIN (
+                            SELECT person_uid
+                                , LISTAGG(code,',') WITHIN GROUP( ORDER BY code) ROLES
+                            FROM(
+                                SELECT DISTINCT
+                                    apracld_pidm PERSON_UID
+                                    , apracld_actc_code
+                                    || '/' || apracld_lead_code CODE
+                                FROM
+                                    APRACLD
+                            ) GROUP BY person_uid
+                    ) LEADERSHIP ON w_constituent.person_uid = leadership.person_uid
+                LEFT JOIN (
+                            SELECT aprmail_pidm ENTITY_UID
+                                , LISTAGG(aprmail_mail_code,',') WITHIN GROUP( ORDER BY aprmail_mail_code) CODE_LIST
+                            FROM aprmail
+                            GROUP BY aprmail_pidm
+                   ) MAIL_CODES ON w_constituent.person_uid = mail_codes.entity_uid
 
         WHERE(
-                (   p_all_exclusion_codes = 1
-                    OR instr(p_exclusion_codes, w_NSU_EXCLUSION_SLOT.NPH||',') > 0
-                    OR instr(p_exclusion_codes, w_NSU_EXCLUSION_SLOT.NOC||',') > 0
-                    OR instr(p_exclusion_codes, w_NSU_EXCLUSION_SLOT.NMC||',') > 0
-                    OR instr(p_exclusion_codes, w_NSU_EXCLUSION_SLOT.NEM||',') > 0
-                    OR instr(p_exclusion_codes, w_NSU_EXCLUSION_SLOT.NAM||',') > 0
-                    OR instr(p_exclusion_codes, w_NSU_EXCLUSION_SLOT.NDN||',') > 0
-                    OR instr(p_exclusion_codes, w_NSU_EXCLUSION_SLOT.NAK||',') > 0
-                    OR instr(p_exclusion_codes, w_NSU_EXCLUSION_SLOT.NTP||',') > 0
-                    OR instr(p_exclusion_codes, w_NSU_EXCLUSION_SLOT.AMS||',') > 0
+                (
+                    (p_all_activities = 1 and p_all_years = 1)
+                    or (p_all_activities = 1 
+                        and exists(
+                                    SELECT 'X' "CALC1"
+                                    FROM apracyr
+                                    WHERE instr(p_activity_years, apracyr_year||',') > 0
+                                        AND apracyr_pidm = w_constituent.person_uid
+                                    )
+                            
+                    )   
+                    or  exists( select 'X' "calc1"
+                                from apracyr
+                                where instr(p_activity_codes, apracyr_actc_code||',') > 0 
+                                    and(    (   p_all_years <> 1
+                                                and instr(p_activity_years, apracyr_year||',') > 0
+                                            )
+                                            or p_all_years = 1
+                                    )
+                                and apracyr_pidm = w_constituent.person_uid
+                        ) 
                 )
                 -----
                 and(
-                        (p_all_mail_codes = 1
+                    p_all_leadership = 1
+                    or exists( select 'X' "calc1"
+                                from apracld
+                                where   instr(p_leadership_codes, apracld_lead_code||',') > 0  -- if code||, in code list passed in,...
+                                        and   apracld_pidm = w_CONSTITUENT.PERSON_UID                    
                     )
+                )
+                -----
+                and(    p_ignore_degree_dates = 1 -- degree awarded dates / most of these are null
+                        or w_DEGREE_SLOT.DEGREE_DATE_1 between p_degree_date_start and p_degree_date_end
+                        or w_DEGREE_SLOT.DEGREE_DATE_2 between p_degree_date_start and p_degree_date_end
+                        or w_DEGREE_SLOT.DEGREE_DATE_3 between p_degree_date_start and p_degree_date_end
+                )
+                -----
+                -- NVL in a dummy value else it's going to find the first comma in the string
+                and(    p_all_grad_years = 1 -- these are the academic years not grad years
+                        or instr(p_grad_years, NVL(w_DEGREE_SLOT.ACADEMIC_YEAR_1,'0000')||',') >0
+                        or instr(p_grad_years, NVL(w_DEGREE_SLOT.ACADEMIC_YEAR_2,'0000')||',') >0
+                        or instr(p_grad_years, NVL(w_DEGREE_SLOT.ACADEMIC_YEAR_3,'0000')||',') >0
+                )
+                -----                
+                and(    p_all_degrees = 1
+                        or instr(p_degrees, NVL(w_DEGREE_SLOT.DEGREE_1,'xyz')||',') >0
+                        or instr(p_degrees, NVL(w_DEGREE_SLOT.DEGREE_2,'xyz')||',') >0
+                        or instr(p_degrees, NVL(w_DEGREE_SLOT.DEGREE_3,'xyz')||',') >0
+                )
+                -----
+                and(    p_all_majors = 1
+                        or instr(p_majors, NVL(w_DEGREE_SLOT.MAJOR_1,'ZZ9')||',') >0
+                        or instr(p_majors, NVL(w_DEGREE_SLOT.MAJOR_2,'ZZ9')||',') >0
+                        or instr(p_majors, NVL(w_DEGREE_SLOT.MAJOR_3,'ZZ9')||',') >0
+                )
+                -----
+                -- Include Deceased is a checkbox 
+                and(    p_deceased = 1 -- 1 if you want dead people, if you don't (p_deceased = 0) dead_ind has to be N
+                        or NVL(w_spbpers.spbpers_dead_ind,'N') = 'N'
+                )
+                -----                
+                and(    nvl2(SPBPERS_VERA_IND, 'Y','N') = p_veteran 
+                        or p_veteran = 'All'
+                )
+                -----
+                -- changed household ind to (y/n/all) like vet ind, field is APRXREF_HOUSEHOLD_IND = Y/N no nulls
+                and(    p_household_ind = 'All'
+                        OR p_household_ind = w_relationship.household_ind                
+                )
+                -----
+--                and(    p_all_zipcodes = 1
+--                        or( p_ignore_zip_use_state = 1
+--                            and (instr(p_state_codes, NVL(w_address.spraddr_stat_code,'no state')||',') > 0 
+--                                 or p_state_codes = 'All')
+--                        )
+--                    or instr(p_zipcodes, NVL(substr(w_address.spraddr_zip,1,5),'no zip')||',') >0 
+--                )
+--2                and (   (   p_ignore_zip_use_state = 1   
+--                            AND instr(p_state_codes, NVL(w_address.spraddr_stat_code,'no state')||',') > 0
+--                        ) OR (
+--                            NVL(p_ignore_zip_use_state,0) <> 1
+--                            AND (INSTR(p_zipcodes, NVL(SUBSTR(w_address.spraddr_zip,1,5),'no zip')||',') >0 
+--                                OR( p_all_zipcodes = 1
+--                                    and instr(p_state_codes, NVL(w_address.spraddr_stat_code,'no state')||',') > 0
+--                                )
+--                            )
+--                        )
+--                )
+                and(
+                    ( -- city overrides all other geo criteria, 0 if used
+                        nvl(p_use_city,0) <> 1 
+                        and trim(upper(w_address.spraddr_city)) = upper(p_city)
+                    )
+                    OR( -- check state codes
+                        p_state_codes = 'All'
+                        or ( -- check state code only if returning all counties, otherwise only check county codes
+                            instr(p_state_codes, NVL(w_address.spraddr_stat_code,'no state')||',') > 0
+                            AND NVL(p_all_counties,0) = 1
+                            )
+                    )
+                    OR( 
+                        p_zipcodes = 'All'
+                        or INSTR(p_zipcodes, NVL(SUBSTR(w_address.spraddr_zip,1,5),'no zip')||',') >0 
+                    )
+                    --counties
+                    OR(
+                        nvl(p_all_counties,0) <> 1
+                        AND instr(p_county_codes, NVL(w_address.spraddr_cnty_code,'no county')||',') > 0
+                    )
+                )
+                -----                    
+                and(
+                        p_all_donor_cats = 1
+                        OR INSTR(p_donor_cats, NVL(w_constituent.pref_donor_category,'no cat')||',') >0
+                    
+--                    or exists(  select 'x' "calc1"
+--                                FROM aprcatg DONOR_CATEGORY
+--                                WHERE donor_category.aprcatg_pidm = w_constituent.person_uid
+--                                    AND instr(p_donor_cats, NVL(donor_category.aprcatg_donr_code,'no cat')||',') >0
+--                    )
+                )
+                -----
+                and(    p_all_gift_capacities = 1
+                        or instr(p_gift_capacity, NVL(w_advancement_rating_slot.rating_amount1,'no gift cap')||',') > 0
+                )
+                and(    p_all_wealth_engine_desg = 1
+                        or instr(p_wealth_engine_desg, NVL(w_advancement_rating_slot.rating_level2,'no we desg')||',') > 0
+                )                
+                -----
+                and(    
+                        p_all_spec_purpose_types  = 1
+                        OR INSTR(p_spec_purpose_types, NVL(w_spec_purpose.special_purpose_type,'no type')||',') >0
+                )
+                ----
+                and(
+                        p_all_spec_purpose_groups = 1
+                        or instr(p_spec_purpose_groups, NVL(w_spec_purpose.special_purpose_group,'no purpose')||',') >0
+                )                
+                -----                
+                and(   
+                        p_all_exclusion_codes = 1
+                    OR instr(p_exclusion_codes, NVL(w_NSU_EXCLUSION_SLOT.NPH,'no code')||',') > 0
+                    OR instr(p_exclusion_codes, NVL(w_NSU_EXCLUSION_SLOT.NOC,'no code')||',') > 0
+                    OR instr(p_exclusion_codes, NVL(w_NSU_EXCLUSION_SLOT.NMC,'no code')||',') > 0
+                    OR instr(p_exclusion_codes, NVL(w_NSU_EXCLUSION_SLOT.NEM,'no code')||',') > 0
+                    OR instr(p_exclusion_codes, NVL(w_NSU_EXCLUSION_SLOT.NAM,'no code')||',') > 0
+                    OR instr(p_exclusion_codes, NVL(w_NSU_EXCLUSION_SLOT.NDN,'no code')||',') > 0
+                    OR instr(p_exclusion_codes, NVL(w_NSU_EXCLUSION_SLOT.NAK,'no code')||',') > 0
+                    OR instr(p_exclusion_codes, NVL(w_NSU_EXCLUSION_SLOT.NTP,'no code')||',') > 0
+                    OR instr(p_exclusion_codes, NVL(w_NSU_EXCLUSION_SLOT.AMS,'no code')||',') > 0
+                )
+                -----
+                and(
+                        p_all_mail_codes = 1
+--                        OR INSTR(p_mail_codes,NVL(w_aprmail.aprmail_mail_code,'no code')||',') > 0 
+--                    )
                     or exists(  select 'x' "calc1"
-                                FROM aprmail
+                                FROM w_aprmail
                                 WHERE aprmail_pidm = w_constituent.person_uid
-                                    and instr(p_mail_codes,aprmail_mail_code||',') > 0 
-                    )
-                )
-                -----
-                and(
-                        (p_all_donor_cats = 1
-                    )
-                    or exists(  select 'x' "calc1"
-                                FROM aprcatg DONOR_CATEGORY
-                                WHERE donor_category.aprcatg_pidm = w_constituent.person_uid
-                                    AND instr(p_donor_cats, donor_category.aprcatg_donr_code||',') >0
+                                    and instr(p_mail_codes,NVL(aprmail_mail_code,'no code')||',') > 0 
                     )
                 )
                 -----
@@ -1224,41 +1436,10 @@ declare
                     )
                 )
                 -----
+
                 and(
-                        (p_all_spec_purpose_types  = 1
-                    )
-                    or exists(  select 'x' "calc1"
-                                FROM aprpros SPECIAL_PURPOSE_GROUP
-                                WHERE special_purpose_group.aprpros_pidm = w_constituent.person_uid
-                                    AND instr(p_spec_purpose_types, special_purpose_group.aprpros_prtp_code||',') >0
-                    )
-                )
-                -----                                  
-                and(
-                        (p_all_spec_purpose_groups = 1
-                    )
-                    or exists(  select 'x' "calc1"
-                                FROM aprpros SPECIAL_PURPOSE_GROUP
-                                WHERE special_purpose_group.aprpros_pidm = w_constituent.person_uid
-                                    AND instr(p_spec_purpose_groups, special_purpose_group.aprpros_prcd_code||',') >0
-                    )
-                )                
-                -----
-                and(    p_all_gift_capacities = 1
-                        or instr(p_gift_capacity, w_ADVANCEMENT_RATING_SLOT.RATING_AMOUNT1||',') > 0
-                )
-                -----
-                and(    p_all_wealth_engine_desg = 1
-                        or instr(p_wealth_engine_desg, w_ADVANCEMENT_RATING_SLOT.RATING_LEVEL2||',') > 0
-                )                
-                -----
-                and(    p_ignore_household_ind = 1
-                        or instr(p_household_ind, w_RELATIONSHIP.HOUSEHOLD_IND||',') > 0                
-                )
-                -----
-                and(
-                        ( p_prim_spouse_unmarried = 1                      
-                        ) AND(  (w_RELATIONSHIP.RELATION_SOURCE = 'SX'
+                        p_prim_spouse_unmarried = 1 
+                        AND(  (w_RELATIONSHIP.RELATION_SOURCE = 'SX'
                                     AND w_RELATIONSHIP.COMBINED_MAILING_PRIORITY = 'P'
                                 ) OR    NOT EXISTS( SELECT 'x' "calc1"
                                                     FROM w_relationship RELATIONSHIP1
@@ -1269,87 +1450,10 @@ declare
                         )
                 )
                 -----
-                and(
-                        (p_deceased = 1
-                    ) or NVL(w_spbpers.spbpers_dead_ind,'N') = 'N'
-                )
-                -----
-                and(
-                    p_all_leadership = 1
-                    or( exists( select 'X' "calc1"
-                                from apracld
-                                where   instr(p_leadership_codes, apracld_lead_code||',') > 0  -- if code||, in code list passed in,...
-                                        and   apracld_pidm = w_CONSTITUENT.PERSON_UID
-                        )
-                        and p_all_leadership = 0                
-                    )
-                )
-                -----
-                and(    p_all_zipcodes = 1
-                        or( p_ignore_zip = 1
-                            and instr(p_state_codes, substr(w_address.spraddr_stat_code,1,2)||',') > 0 
-                        )
-                    or instr(p_zipcodes, substr(w_address.spraddr_zip,1,5)||',') >0 
-                )
-                -----
-                and(    p_all_counties = 1
-                        or instr(p_county_codes, w_address.spraddr_cnty_code||',') > 0
-                )
-                -----                
-                and(    p_use_city = 1
-                        or    upper(w_address.spraddr_city) = upper(p_city)
-                )
-                -----
-                and(
-                        nvl2(SPBPERS_VERA_IND, 'Y','N') = p_veteran 
-                        or p_veteran = 'All'
-                )
-                ----                
-                and( -- Activity codes will come in as a csv string ending with a comma   
-                        p_all_activities = 1
-                        or  exists( select 'X' "calc1"
-                                    from apracyr
-                                    where instr(p_activity_codes, apracyr_actc_code||',') > 0 
-                                    and(    (   p_all_years = 0
-                                                and instr(p_activity_years, apracyr_year||',') > 0
-                                        )
-                                    or p_all_years = 1
-                                    )
-                        and apracyr_pidm =w_constituent.person_uid
-                            )   
-                        or exists(  select 'X' "calc1"
-                                    from apracty
-                                    where instr(p_activity_codes, apracty_actc_code||',') > 0 
-                                        and apracty_pidm =w_constituent.person_uid 
-                            )
-                )
-                -----
-                and(    p_all_degrees = 1
-                        or instr(p_degrees, w_DEGREE_SLOT.DEGREE_1||',') >0
-                        or instr(p_degrees, w_DEGREE_SLOT.DEGREE_2||',') >0
-                        or instr(p_degrees, w_DEGREE_SLOT.DEGREE_3||',') >0
-                )
-                -----
-                and(    p_all_grad_years = 1
-                        or instr(p_grad_years, w_DEGREE_SLOT.ACADEMIC_YEAR_1||',') >0
-                        or instr(p_grad_years, w_DEGREE_SLOT.ACADEMIC_YEAR_2||',') >0
-                        or instr(p_grad_years, w_DEGREE_SLOT.ACADEMIC_YEAR_3||',') >0
-                )
-                -----
-                and(    p_all_majors = 1
-                        or instr(p_majors, w_DEGREE_SLOT.MAJOR_1||',') >0
-                        or instr(p_majors, w_DEGREE_SLOT.MAJOR_2||',') >0
-                        or instr(p_majors, w_DEGREE_SLOT.MAJOR_3||',') >0
-                )
-                -----
-                and(    p_ignore_degree_dates = 1
-                        or w_DEGREE_SLOT.DEGREE_DATE_1 between p_degree_date_start and p_degree_date_end
-                        or w_DEGREE_SLOT.DEGREE_DATE_2 between p_degree_date_start and p_degree_date_end
-                        or w_DEGREE_SLOT.DEGREE_DATE_3 between p_degree_date_start and p_degree_date_end
-                )
-                -----
+
                 
         ) -- end WHERE
+        
 ; -- end cursor boris
 
     earn_rec boris%rowtype;
@@ -1359,15 +1463,64 @@ declare
 BEGIN
     DBMS_OUTPUT.put_line('start '||systimestamp);
     
-    fhandle := utl_file.fopen(
-                'U13_PROD'          
-                ,'Standard Constituent ' || to_char(sysdate,'YYYY-MM-DD HH24MMSS') || '.csv'
-                ,'W',
-                32767
-            );
+--    fhandle := utl_file.fopen(
+--                'U13_PROD'          
+--                ,'Standard Constituent ' || to_char(sysdate,'YYYY-MM-DD HH24MMSS') || '.csv'
+--                ,'W',
+--                32767
+--            );
+
+--Parm check:
+    dbms_output.put_line('Parameters:');
+    dbms_output.put_line(' ');
+    dbms_output.put_line('p_activity_codes '        || ',' ||p_activity_codes);
+    dbms_output.put_line('p_all_activities '        || ',' ||p_all_activities);
+    dbms_output.put_line('p_activity_years '        || ',' ||p_activity_years);
+    dbms_output.put_line('p_all_years '             || ',' ||p_all_years);
+    dbms_output.put_line('p_leadership_codes '      || ',' ||p_leadership_codes);
+    dbms_output.put_line('p_all_leadership '        || ',' ||p_all_leadership);
+    dbms_output.put_line('p_degree_date_start '     || ',' ||p_degree_date_start);
+    dbms_output.put_line('p_degree_date_end '       || ',' ||p_degree_date_end);
+    dbms_output.put_line('p_ignore_degree_dates '   || ',' ||p_ignore_degree_dates);
+    dbms_output.put_line('p_grad_years '            || ',' ||p_grad_years);
+    dbms_output.put_line('p_all_grad_years '        || ',' ||p_all_grad_years);
+    dbms_output.put_line('p_degrees '               || ',' ||p_degrees);
+    dbms_output.put_line('p_all_degrees '           || ',' ||p_all_degrees);
+    dbms_output.put_line('p_majors '                || ',' ||p_majors);
+    dbms_output.put_line('p_all_majors '            || ',' ||p_all_majors);
+    dbms_output.put_line('p_deceased '              || ',' ||p_deceased);
+    dbms_output.put_line('p_veteran '               || ',' ||p_veteran);
+    dbms_output.put_line('p_prim_spouse_unmarried ' || ',' ||p_prim_spouse_unmarried);
+    dbms_output.put_line('p_household_ind '         || ',' ||p_household_ind);
+    --dbms_output.put_line('p_ignore_household_ind '  || ',' ||p_ignore_household_ind);
+    dbms_output.put_line('p_zipcodes '              || ',' ||p_zipcodes);
+    dbms_output.put_line('p_all_zipcodes '          || ',' ||p_all_zipcodes);
+    dbms_output.put_line('p_ignore_zip_use_state '            || ',' ||p_ignore_zip_use_state);
+    dbms_output.put_line('p_state_codes '           || ',' ||p_state_codes);
+    dbms_output.put_line('p_city '                  || ',' ||p_city);
+    dbms_output.put_line('p_use_city '              || ',' ||p_use_city);
+    dbms_output.put_line('p_county_codes '          || ',' ||p_county_codes);
+    dbms_output.put_line('p_all_counties '          || ',' ||p_all_counties);
+    dbms_output.put_line('p_donor_cats '            || ',' ||p_donor_cats);
+    dbms_output.put_line('p_all_donor_cats '        || ',' ||p_all_donor_cats);
+    dbms_output.put_line('p_gift_capacity '         || ',' ||p_gift_capacity);
+    dbms_output.put_line('p_all_gift_capacities '   || ',' ||p_all_gift_capacities);
+    dbms_output.put_line('p_wealth_engine_desg '    || ',' ||p_wealth_engine_desg);
+    dbms_output.put_line('p_all_wealth_engine_desg '|| ',' ||p_all_wealth_engine_desg);
+    dbms_output.put_line('p_spec_purpose_types '    || ',' ||p_spec_purpose_types);
+    dbms_output.put_line('p_all_spec_purpose_types '|| ',' ||p_all_spec_purpose_types);
+    dbms_output.put_line('p_spec_purpose_groups '   || ',' ||p_spec_purpose_groups);
+    dbms_output.put_line('p_all_spec_purpose_groups '|| ',' ||p_all_spec_purpose_groups);
+    dbms_output.put_line('p_exclusion_codes '       || ',' ||p_exclusion_codes);
+    dbms_output.put_line('p_all_exclusion_codes '   || ',' ||p_all_exclusion_codes);
+    dbms_output.put_line('p_mail_codes '            || ',' ||p_mail_codes);
+    dbms_output.put_line('p_all_mail_codes '        || ',' ||p_all_mail_codes);
+    dbms_output.put_line('p_giving_start_date '     || ',' ||p_giving_start_date);
+    dbms_output.put_line('p_giving_end_date '       || ',' ||p_giving_end_date);
+    dbms_output.put_line('p_ignore_gift_dates '     || ',' ||p_ignore_gift_dates);
     
-    utl_file.put_line(fhandle,
---DBMS_OUTPUT.put_line(
+--    utl_file.put_line(fhandle,
+DBMS_OUTPUT.put_line(
             'PERSON_UID' 
             || ',' || 'ID'
             || ',' || 'NAME'
@@ -1395,6 +1548,7 @@ BEGIN
             || ',' || 'NAK'
             || ',' || 'NTP'
             || ',' || 'AMS'
+            || ',' || 'MAIL_CODES'
             || ',' || 'PREFERRED_FULL_W_SALUTATION'
             || ',' || 'PREFERRED_SHORT_W_SALUTATION'
             || ',' || 'SIFE'
@@ -1449,20 +1603,23 @@ BEGIN
             || ',' || 'DATE_RANGE_TOTAL_AUX_AMT'
             || ',' || 'DEGREE_1'
             || ',' || 'DEGREE_DESC_1'
-            || ',' || 'ACADEMIC_YEAR_1'
             || ',' || 'MAJOR_1'
             || ',' || 'MAJOR_DESC_1'
             || ',' || 'DEGREE_2'
             || ',' || 'DEGREE_DESC_2'
-            || ',' || 'ACADEMIC_YEAR_2'
             || ',' || 'MAJOR_2'
             || ',' || 'MAJOR_DESC_2'
             || ',' || 'DEGREE_3'
             || ',' || 'DEGREE_DESC_3'
+            || ',' || 'ACADEMIC_YEAR_1'
+            || ',' || 'ACADEMIC_YEAR_2'
             || ',' || 'ACADEMIC_YEAR_3' 
             || ',' || 'MAJOR_3'
             || ',' || 'MAJOR_DESC_3'
-            || ',' || 'SPEC_PURPOSE_TYPE_GROUP'
+            || ',' || 'SPEC_PURPOSE_TYPE'
+            || ',' || 'SPEC_PURPOSE_TYPE_DESC'
+            || ',' || 'SPEC_PURPOSE_GROUP'
+            || ',' || 'SPEC_PURPOSE_GROUP_DESC'            
             || ',' || 'TOTAL_NO_GIFTS'
             || ',' || 'HIGH_GIFT_AMT'
             || ',' || 'LAST_GIFT_DATE'
@@ -1479,6 +1636,8 @@ BEGIN
             || ',' || 'GURIDEN_DESC'
             || ',' || 'LONGEST_CONS_YEARS_GIVEN'
             || ',' || 'RECENT_CONSECUTIVE_YEARS'
+            || ',' || 'ACTIVITIES'
+            || ',' || 'LEADERSHIP ROLES'
             );
             
     FOR earn_rec
@@ -1488,8 +1647,8 @@ BEGIN
 --        utl_file.put_line(fhandle,'rec: ' || p_record_count);
 --        dbms_output.put_line('rec: ' || p_record_count);
 --        'All work and no play makes Jack a dull boy.'
---DBMS_OUTPUT.put_line(
-        UTL_FILE.PUT_LINE(fhandle,
+DBMS_OUTPUT.put_line(
+--        UTL_FILE.PUT_LINE(fhandle,
             earn_rec.PERSON_UID
             || ',' || earn_rec.ID
             || ',' || CHR(34) || earn_rec.NAME || CHR(34)
@@ -1517,6 +1676,7 @@ BEGIN
             || ',' || earn_rec.nak
             || ',' || earn_rec.ntp
             || ',' || earn_rec.ams
+            || ',' || CHR(34) || earn_rec.mail_codes || CHR(34)
             || ',' || CHR(34) || earn_rec.PREFERRED_FULL_w_SALUTATION || CHR(34)
             || ',' || CHR(34) || earn_rec.PREFERRED_SHORT_w_SALUTATION || CHR(34)
             || ',' || CHR(34) || earn_rec.SIFE || CHR(34)
@@ -1571,20 +1731,23 @@ BEGIN
             || ',' || earn_rec.DATE_RANGE_TOTAL_AUX_AMT
             || ',' || earn_rec.degree_1
             || ',' || CHR(34) || earn_rec.degree_desc_1 || CHR(34) 
-            || ',' || earn_rec.academic_year_1
             || ',' || CHR(34) || earn_rec.major_1 || CHR(34) 
             || ',' || CHR(34) || earn_rec.major_desc_1 || CHR(34) 
             || ',' || earn_rec.degree_2
-            || ',' || CHR(34) || earn_rec.degree_desc_2 || CHR(34) 
-            || ',' || earn_rec.academic_year_2
+            || ',' || CHR(34) || earn_rec.degree_desc_2 || CHR(34)             
             || ',' || CHR(34) || earn_rec.major_2 || CHR(34) 
             || ',' || CHR(34) || earn_rec.major_desc_2|| CHR(34) 
             || ',' || earn_rec.degree_3
             || ',' || CHR(34) || earn_rec.degree_desc_3 || CHR(34) 
-            || ',' || earn_rec.academic_year_3 
             || ',' || CHR(34) || earn_rec.major_3 || CHR(34) 
             || ',' || CHR(34) || earn_rec.major_desc_3 || CHR(34) 
-            || ',' || earn_rec.SPEC_PURPOSE_TYPE_GROUP
+            || ',' || earn_rec.academic_year_1
+            || ',' || earn_rec.academic_year_2
+            || ',' || earn_rec.academic_year_3
+            || ',' || earn_rec.SPECIAL_PURPOSE_TYPE
+            || ',' || earn_rec.SPECIAL_PURPOSE_TYPE_DESC
+            || ',' || earn_rec.SPECIAL_PURPOSE_GROUP
+            || ',' || earn_rec.SPECIAL_PURPOSE_GROUP_DESC
             || ',' || earn_rec.total_no_gifts
             || ',' || earn_rec.high_gift_amt
             || ',' || earn_rec.last_gift_date
@@ -1601,6 +1764,8 @@ BEGIN
             || ',' || earn_rec.guriden_desc
             || ',' || earn_rec.longest_cons_years_given
             || ',' || earn_rec.recent_consecutive_years
+            || ',' || CHR(34) || earn_rec.activities || CHR(34)
+            || ',' || CHR(34) || earn_rec.leadership_roles || CHR(34)
 --              , TRUE -- autoflush
               );
                 
@@ -1612,14 +1777,15 @@ BEGIN
         
     END LOOP;
     
-  --  DBMS_OUTPUT.put_line('end '|| p_record_count || ' ' ||systimestamp);
+    DBMS_OUTPUT.put_line('end '|| p_record_count || ' ' ||systimestamp);
     --utl_file.put(fhandle, 'end '|| p_record_count || ' ' ||systimestamp);
     
 --    utl_file.fflush(fhandle);
-    utl_file.fclose(fhandle);
-    exception
-        when others then
-            dbms_output.put_line('ERROR: ' || SQLCODE 
-                      || ' - ' || SQLERRM);
-  --          raise;
+
+--    utl_file.fclose(fhandle);
+--    exception
+--        when others then
+--            dbms_output.put_line('ERROR: ' || SQLCODE 
+--                      || ' - ' || SQLERRM);
+--  --          raise;
 END;        
