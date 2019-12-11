@@ -1,13 +1,13 @@
-CREATE OR REPLACE PROCEDURE nsu_alumni_standard_const(
+create or replace PROCEDURE nsu_alumni_standard_const(
 
 /*************************************************
 PROCEDURE name
     Compiles a standard list of Advancement constituents filtering for several data elements.
     To be called from an Argos datablock. Rewrite of existing Standard Constituent datablock run against ODS
-    
+
 Northeastern State Univerisity
     Nov 2019    Scott Williamson   Start
-    
+
 *************************************************/
 
 --Activities
@@ -28,26 +28,26 @@ Northeastern State Univerisity
 
   p_degrees                 IN  VARCHAR2, -- parm_MC_Degrees
   p_all_degrees             IN  VARCHAR2, -- parm_CB_AllDegrees
-  
+
   p_majors                  IN  VARCHAR2, -- parm_MC_Major
   p_all_majors              IN  VARCHAR2, -- parm_CB_AllMajors
 
 --Demographics
   p_deceased                IN  VARCHAR2, -- parm_CB_deceased - Include Deceased?
-  
+
   p_veteran                 IN  VARCHAR2, -- lb_veteran (All, Y, N)
-  
+
   p_prim_spouse_unmarried   IN  VARCHAR2, -- parm_CB_PrimSpouse_Unmarried
-  
+
   p_household_ind           IN  VARCHAR2, -- parm_LB_HouseholdInd (All, Y,N)
   --p_ignore_household_ind    VARCHAR2(10) := '1'; -- parm_CB_HouseholdInd - made redundant
-  
+
   p_zipcodes                IN  VARCHAR2, -- parm_MC_ZipCode
   p_all_zipcodes            IN  VARCHAR2, -- parm_CB_AllZipCodes
-  
+
   p_ignore_zip_use_state    IN  VARCHAR2, -- parm_CB_ignore_zip_use_state
   p_state_codes             IN  VARCHAR2, -- parm_MC_StateCode
-  
+
   p_city                    IN  VARCHAR2, -- parm_EB_City
   p_use_city                IN  VARCHAR2, -- parm_CB_enter_name - 0 if use city is overriding state/zip/county
   p_county_codes            IN  VARCHAR2, -- parm_MC_CountryCode
@@ -56,22 +56,22 @@ Northeastern State Univerisity
 --Donor Information
   p_donor_cats              IN  VARCHAR2, -- parm_MC_DonorCats
   p_all_donor_cats          IN  VARCHAR2, -- parm_CB_AllDonorCats
-  
+
   p_gift_capacity           IN  VARCHAR2, -- parm_LB_GiftCapRange -- advancement_rating_slot type1
   p_all_gift_capacities     IN  VARCHAR2, -- parm_CB_AllGCrranges
-  
+
   p_wealth_engine_desg      IN  VARCHAR2, -- parm_LB_WealthEngineDesg -- advancement_rating_slot type2
   p_all_wealth_engine_desg  IN  VARCHAR2, -- parm_CB_AllWEdesignations
-  
+
   p_spec_purpose_types      IN  VARCHAR2, -- parm_MC_SP_Types
   p_all_spec_purpose_types  IN  VARCHAR2, -- parm_CB_SP_Types
-  
+
   p_spec_purpose_groups     IN  VARCHAR2, -- parm_MC_SP_Groups
   p_all_spec_purpose_groups IN  VARCHAR2, -- parm_CB_SP_Groups
-  
+
   p_exclusion_codes         IN  VARCHAR2, -- parm_MC_ExclusionCode
   p_all_exclusion_codes     IN  VARCHAR2, -- parm_CB_AllExclusions
-  
+
   p_mail_codes              IN  VARCHAR2, -- parm_MC_mail_codes
   p_all_mail_codes          IN  VARCHAR2, -- parm_CB_AllMailCodes
 
@@ -85,7 +85,7 @@ Northeastern State Univerisity
 ) IS
 
   p_record_count            NUMBER := 0;
-    
+
     CURSOR boris IS
 
         WITH /* w_lifetime_giving AS(
@@ -147,7 +147,7 @@ Northeastern State Univerisity
                                 || spriden_first_name
                               END APRCSPS_SPOUSE_NAME
                             , row_number() over (partition by aprcsps_pidm order by aprcsps_pidm) rn
-                                
+
                         FROM 
                             aprcsps
                             LEFT JOIN spriden
@@ -207,7 +207,7 @@ Northeastern State Univerisity
                     ON apbcons_pidm = w_spouse.person_uid
 --                left join w_lifetime_giving
 --                    on apbcons_pidm = w_lifetime_giving.person_uid
-                                                
+
         ) --end w_constituent
 -- select * from w_constituent;
         , w_annual_gifts AS(
@@ -217,7 +217,7 @@ Northeastern State Univerisity
                     , gift_date GIFT_YEAR
                     , YEAR_POS  YEAR_POS -- sysyear = 1 
                     , sum(tots) GIFT_AMOUNT
-                    
+
                 FROM(
                     SELECT
                         agbgift_pidm ENTITY_UID
@@ -232,7 +232,7 @@ Northeastern State Univerisity
                     GROUP BY
                         agbgift_pidm
                         , to_char(agbgift_gift_date,'YYYY')
-        
+
                     UNION
                     SELECT
                         agrgaux_pidm ENTITY_UID
@@ -271,7 +271,7 @@ Northeastern State Univerisity
                 , spouse_gifts.lifetime_gift_amount LIFETIME_SPOUSE_GIVING
                 , nvl(donor_gifts.lifetime_gift_amount,0)
                     + nvl(spouse_gifts.lifetime_gift_amount,0) LIFETIME_HOUSEHOLD_GIVING
-                
+
             FROM(   SELECT
                         w_constituent.person_uid PERSON_UID
                         , SUM(  CASE WHEN w_annual_gifts.year_pos = 1 THEN nvl(w_annual_gifts.gift_amount,0) ELSE 0 END) 
@@ -296,7 +296,7 @@ Northeastern State Univerisity
                                     ON w_spouse.spouse_uid = w_annual_gifts.entity_uid
                                     --AND w_annual_gifts.gift_year = EXTRACT(YEAR FROM SYSDATE)
                     ) SPOUSE_GIFTS ON donor_gifts.person_uid = spouse_gifts.person_uid
-                  
+
             )
 ----select * from w_household_giving order by 1;
 
@@ -344,7 +344,7 @@ Northeastern State Univerisity
                 , BANINST1.NSU_ALUMNI_ODS_FUNC.F_GET_TOT_PLEDGE_PAYMENT_YEAR(aprchis_pidm,EXTRACT(YEAR FROM sysdate)) TOTAL_PLEDGE_PAYMENTS1
                 , aprchis_fisc_code FISCAL_YEAR1
                 , BANINST1.NSU_ALUMNI_ODS_FUNC.F_GET_TOT_GIVING_YEAR(aprchis_pidm,EXTRACT(YEAR FROM sysdate)) TOTAL_GIVING1
-                
+
             FROM(
                 SELECT distinct aprchis_pidm 
                 FROM aprchis
@@ -360,7 +360,7 @@ Northeastern State Univerisity
             ) B
                 ON a.aprchis_pidm = b.check_pidm
         ) --end w_annual_giving_slot
-    
+
         , w_advancement_rating_slot AS(
             SELECT
                 entity_uid
@@ -394,7 +394,7 @@ Northeastern State Univerisity
                             ON wegif.amrexrt_pidm = p2g.amrexrt_pidm
             )
         ) -- end w_advancement_rating_slot
-       
+
         , w_nsu_email_slot as(
             SELECT * FROM(
                 SELECT
@@ -469,7 +469,7 @@ Northeastern State Univerisity
                     ||cl_phone_number||cl_primary_ind
                     ||b1_phone_number||cl_primary_ind) IS NOT NULL
         ) -- end w_nsu_telephone_slot
-    
+
         , w_xref_xclusion AS(
         -- used to make w_relationship faster
             SELECT aprchld_pidm||aprchld_xref_code||aprchld_chld_pidm
@@ -564,7 +564,7 @@ Northeastern State Univerisity
                             AND spriden_change_ind IS NULL
             )     
         ) -- end w_relationship
-   
+
         , w_degree_history AS(
             SELECT * FROM (    
                 SELECT 
@@ -577,7 +577,7 @@ Northeastern State Univerisity
                     , major
                     , major_desc
                     , degree_date
-    
+
                 FROM(
                     SELECT  
                         apradeg_pidm pidm
@@ -609,9 +609,9 @@ Northeastern State Univerisity
                     WHERE apradeg_sbgi_code = '207263' -- NSU college code
                     --and apradeg_pidm in( 66613,85539)
                 )
-    
+
                 UNION
-    
+
                 SELECT 
                     pidm
                     , nsu_ind
@@ -622,7 +622,7 @@ Northeastern State Univerisity
                     , major
                     , major_desc
                     , degree_date
-    
+
                 FROM(
                     SELECT  
                         apradeg_pidm PIDM
@@ -656,7 +656,7 @@ Northeastern State Univerisity
             ) WHERE seqno < 4
             --and pidm = 85539
         ) -- end w_degree_history
-    
+
         , w_degree_slot AS(
             SELECT
                 d1.pidm PERSON_UID
@@ -695,9 +695,9 @@ Northeastern State Univerisity
                     AND d1.seqno = 3
             WHERE d1.nsu_ind = 'Y'
                 AND d1.seqno = 1
-    
+
             UNION
-    
+
             SELECT
                 d1.pidm PERSON_UID
                 , d1.nsu_ind INSTITUTION_IND
@@ -736,7 +736,7 @@ Northeastern State Univerisity
             WHERE d1.nsu_ind = 'N'
                 AND d1.seqno = 1
         ) -- end w_degree_slot;
-   
+
         , w_spbpers AS(
             SELECT
                 spbpers_pidm
@@ -748,13 +748,13 @@ Northeastern State Univerisity
 --                    (B) Protected veteran choosing not to self-identify the classification, 
 --                    (O) Active Wartime or Campaign Badge Veteran, 
 --                    (V) Not a Protected Veteran
-                
+
             FROM
                 spbpers
             WHERE
                 spbpers_pidm IN (SELECT person_uid FROM w_constituent)
         ) -- end w_spbpers
-   
+
         , w_apbghis AS(
             SELECT
                apbghis_pidm
@@ -764,7 +764,7 @@ Northeastern State Univerisity
             FROM
                 apbghis 
         ) -- end w_apbghis;
-   
+
         , w_amrstaf AS(
             SELECT
                 amrstaf_pidm
@@ -774,7 +774,7 @@ Northeastern State Univerisity
             WHERE
                 AMRSTAF_PRIMARY_IND = 'Y'
         ) -- end w_amrstaf
-    
+
         , w_guriden AS(
             SELECT
                 guriden_iden_code
@@ -782,7 +782,7 @@ Northeastern State Univerisity
             FROM
                 guriden
         ) -- end w_guriden
-   
+
         , w_recent_membership AS(
             SELECT
                 aarmemb_pidm ENTITY_UID,
@@ -795,7 +795,7 @@ Northeastern State Univerisity
             GROUP BY 
                 aarmemb_pidm
         ) -- end w_recent_membership
-    
+
         , w_won_membership AS(
             SELECT
                 aarmemb_pidm ENTITY_UID,
@@ -810,7 +810,7 @@ Northeastern State Univerisity
             GROUP BY
                 aarmemb_pidm
         ) -- end w_won_membership
-    
+
         , w_fan_membership AS(
             SELECT
                 aarmemb_pidm entity_uid,
@@ -825,7 +825,7 @@ Northeastern State Univerisity
             GROUP BY 
                 aarmemb_pidm
         ) -- end w_fan_membership
-    
+
         , w_salutation AS(
         SELECT * FROM(
             SELECT
@@ -842,7 +842,7 @@ Northeastern State Univerisity
             IN ('CIFE' CIFE,'SIFE' SIFE,'CIFL' CIFL,'SIFL' SIFL)
             )
         ) -- end w_salutation
-        
+
         , w_ytd AS(
             SELECT
                 entity_uid
@@ -865,7 +865,7 @@ Northeastern State Univerisity
                 GROUP BY
                     agbgift_pidm
                     , to_char(agbgift_gift_date,'YYYY')
-    
+
             UNION
             SELECT
                 agrgaux_pidm ENTITY_UID
@@ -888,7 +888,7 @@ Northeastern State Univerisity
             ON year = gift_date
         GROUP BY entity_uid
         ) -- end w_ytd
-   
+
         , w_jfsgd AS(
             SELECT
                 amrexrt_pidm ENTITY_UID,
@@ -898,7 +898,7 @@ Northeastern State Univerisity
             WHERE
                 amrexrt_exrs_code = 'JFSGD'
         ) -- end w_jfsgd
-    
+
         , w_employment AS(
             SELECT 
                 person_uid
@@ -919,7 +919,7 @@ Northeastern State Univerisity
             )
             WHERE rn = 1
         ) -- end w_employment;
-    
+
         , w_address AS(
             SELECT
                 spraddr_pidm,
@@ -939,7 +939,7 @@ Northeastern State Univerisity
             GROUP BY
                 spraddr_pidm
         ) -- end w_address;
-   
+
         , w_long_years_given AS(
             SELECT 
                 spriden_pidm
@@ -960,7 +960,7 @@ Northeastern State Univerisity
             )
             GROUP BY spriden_pidm
         ) -- end w_long_years_given;
-    
+
         , w_recent_cons_years AS(
             SELECT 
                 spriden_pidm
@@ -981,7 +981,7 @@ Northeastern State Univerisity
             )
             GROUP BY spriden_pidm
         ) -- end w_recent_cons_years;
-    
+
         , w_range_tot_gift AS(
             SELECT
                 agbgift_pidm ENTITY_UID
@@ -996,7 +996,7 @@ Northeastern State Univerisity
             GROUP BY
                 agbgift_pidm
         ) -- end w_range_tot_gift;
-    
+
         , w_range_tot_aux AS(
             SELECT
                 agrgaux_pidm ENTITY_UID
@@ -1008,7 +1008,7 @@ Northeastern State Univerisity
             GROUP BY
                 agrgaux_pidm
         ) -- end w_range_tot_aux
-    
+
         , w_spec_purpose AS(
             SELECT
                 entity_uid
@@ -1036,7 +1036,7 @@ Northeastern State Univerisity
                     JOIN atvprcd
                         ON aprpros_prcd_code = atvprcd_code
             )
-    
+
             WHERE
                 rn = 1
         ) -- end w_spec_purpose
@@ -1053,7 +1053,7 @@ Northeastern State Univerisity
                 , aprmail_mail_code 
             FROM aprmail
         )
-         
+
 ---
 
         SELECT 
@@ -1067,7 +1067,7 @@ Northeastern State Univerisity
             , w_CONSTITUENT.PREF_DONOR_CATEGORY
             , w_CONSTITUENT.PREF_DONOR_CATEGORY_DESC
             , w_CONSTITUENT.EMAIL_PREFERRED_ADDRESS
-            
+
             , w_address.spraddr_street_line1 "STREET_LINE1"
             , w_address.spraddr_street_line2 "STREET_LINE2"
             , w_address.spraddr_city "CITY"
@@ -1092,7 +1092,7 @@ Northeastern State Univerisity
             , nvl(w_SALUTATION.CIFL,w_SALUTATION.SIFL) PREFERRED_SHORT_w_SALUTATION
             , w_SALUTATION.SIFE SIFE
             , w_SALUTATION.SIFL SIFL
-            
+
             , w_advancement_rating_slot.rating_type1 RATING_TYPE1
             , w_advancement_rating_slot.rating_amount1
             , w_advancement_rating_slot.rating1
@@ -1105,7 +1105,7 @@ Northeastern State Univerisity
             , w_advancement_rating_slot.rating_amount3
             , w_advancement_rating_slot.rating3
             , w_advancement_rating_slot.rating_level3
-            
+
             , w_recent_membership.membership_category Membership_Name
             , w_recent_membership.membership_status Membership_Status
             , w_recent_membership.membership_number membership_number
@@ -1129,7 +1129,7 @@ Northeastern State Univerisity
             , w_nsu_telephone_slot.cl_primary_ind
             , w_nsu_telephone_slot.b1_phone_number
             , w_nsu_telephone_slot.b1_primary_ind
-            
+
 -->> consolidate giving_slot with household_giving            
             , TRIM(TO_CHAR(NVL(w_annual_giving_slot.total_pledge_payments1,0), '999999990.99')) TOTAL_PLEDGE_PAYMENTS1
 --            --trim(to_char(nvl(w_CONSTITUENT.LIFE_TOTAL_GIVING,0), '999999990.99')) "LIFE_TOTAL_GIVING",
@@ -1141,7 +1141,7 @@ Northeastern State Univerisity
             , TRIM(TO_CHAR(NVL(w_household_giving.annual_household_giving,0), '999999990.99')) ANNUAL_HOUSEHOLD_GIVING
 --            --, NSUDEV.NSU_GET_HOUSEHOLD_GIVING_TOTAL(w_constituent.person_uid, 'LIFETIME') "LIFETIME_HOUSEHOLD_GIVING"
             , TRIM(TO_CHAR(NVL(w_household_giving.lifetime_household_giving,0), '999999990.99')) LIFETIME_HOUSEHOLD_GIVING
-            
+
             , w_relationship.relation_source
             , w_relationship.relation_source_desc
             , w_relationship.combined_mailing_priority
@@ -1149,27 +1149,34 @@ Northeastern State Univerisity
             , w_relationship.household_ind HOUSEHOLD_IND 
             , TRIM(TO_CHAR(NVL(w_range_tot_gift.gift_amt,0), '999999990.99')) DATE_RANGE_TOTAL_GIVING
             , TRIM(TO_CHAR(NVL(w_range_tot_aux.gift_amt,0), '999999990.99')) DATE_RANGE_TOTAL_AUX_AMT
+
             , w_degree_slot.degree_1
             , w_degree_slot.degree_desc_1
-            , w_degree_slot.academic_year_1
+            , w_degree_slot.degree_date_1
             , w_degree_slot.major_1
             , w_degree_slot.major_desc_1
+            , w_degree_slot.academic_year_1        
+
             , w_degree_slot.degree_2
             , w_degree_slot.degree_desc_2
-            , w_degree_slot.academic_year_2
+            , w_degree_slot.degree_date_2
             , w_degree_slot.major_2
             , w_degree_slot.major_desc_2
+            , w_degree_slot.academic_year_2
+
             , w_degree_slot.degree_3
             , w_degree_slot.degree_desc_3
-            , w_degree_slot.academic_year_3 
+            , w_degree_slot.degree_date_3
             , w_degree_slot.major_3
             , w_degree_slot.major_desc_3
+            , w_degree_slot.academic_year_3 
+
             --, w_spec_purpose.entity_uid SPEC_PURPOSE_TYPE_GROUP
             , w_spec_purpose.special_purpose_type SPECIAL_PURPOSE_TYPE
             , w_spec_purpose.special_purpose_type_desc SPECIAL_PURPOSE_TYPE_DESC
             , w_spec_purpose.special_purpose_group SPECIAL_PURPOSE_GROUP
             , w_spec_purpose.special_purpose_group_desc SPECIAL_PURPOSE_GROUP_DESC
-            
+
             , w_apbghis.apbghis_total_no_gifts TOTAL_NO_GIFTS
             , w_apbghis.apbghis_high_gift_amt HIGH_GIFT_AMT
             , w_apbghis.apbghis_last_gift_date LAST_GIFT_DATE
@@ -1182,14 +1189,14 @@ Northeastern State Univerisity
             , nvl(w_ytd.ytd_2,0) DED_AMT_w_YTD_2
             , nvl(w_ytd.ytd_3,0) DED_AMT_w_YTD_3
             , nvl(w_ytd.ytd_4,0) DED_AMT_w_YTD_4
-            
+
             , w_employment.employer_name EMPLOYER
             , w_employment.position_title POSITION
             , NVL2(SPBPERS_VERA_IND, 'Y','N') VETERAN_IND
             , w_guriden.guriden_desc
             , w_long_years_given.recent_consecutive_years LONGEST_CONS_YEARS_GIVEN
             , w_recent_cons_years.recent_consecutive_years RECENT_CONSECUTIVE_YEARS
-            
+
             , w_activities.activities ACTIVITIES
             , leadership.roles LEADERSHIP_ROLES
 
@@ -1287,7 +1294,7 @@ Northeastern State Univerisity
                                     WHERE instr(p_activity_years, apracyr_year||',') > 0
                                         AND apracyr_pidm = w_constituent.person_uid
                                     )
-                            
+
                     )   
                     or  exists( select 'X' "calc1"
                                 from apracyr
@@ -1373,27 +1380,29 @@ Northeastern State Univerisity
                         and trim(upper(w_address.spraddr_city)) = upper(p_city)
                     )
                     OR( -- check state codes
-                        p_state_codes = 'All'
-                        or ( -- check state code only if returning all counties, otherwise only check county codes
+                        nvl(p_use_city,0) = 1 
+                        AND p_state_codes = 'All'
+                        or ( -- check state code only if returning all counties, otherwise only check county/zip codes
                             instr(p_state_codes, NVL(w_address.spraddr_stat_code,'no state')||',') > 0
                             AND NVL(p_all_counties,0) = 1
+                            AND NVL(p_all_zipcodes,0) = 1
                             )
                     )
                     OR( 
-                        p_zipcodes = 'All'
-                        or INSTR(p_zipcodes, NVL(SUBSTR(w_address.spraddr_zip,1,5),'no zip')||',') >0 
+                        ( 
+                            NVL(p_all_zipcodes,0) <> 1 -- p_zipcodes = 'All'
+                            AND INSTR(p_zipcodes, NVL(SUBSTR(w_address.spraddr_zip,1,5),'no zip')||',') >0 
+                        )OR(
+                            nvl(p_all_counties,0) <> 1
+                            AND instr(p_county_codes, NVL(w_address.spraddr_cnty_code,'no county')||',') > 0
+                        ) 
                     )
-                    --counties
-                    OR(
-                        nvl(p_all_counties,0) <> 1
-                        AND instr(p_county_codes, NVL(w_address.spraddr_cnty_code,'no county')||',') > 0
-                    )
-                )
+                ) -- end of geo info checks
                 -----                    
                 and(
                         p_all_donor_cats = 1
                         OR INSTR(p_donor_cats, NVL(w_constituent.pref_donor_category,'no cat')||',') >0
-                    
+
 --                    or exists(  select 'x' "calc1"
 --                                FROM aprcatg DONOR_CATEGORY
 --                                WHERE donor_category.aprcatg_pidm = w_constituent.person_uid
@@ -1466,18 +1475,18 @@ Northeastern State Univerisity
                 )
                 -----
 
-                
+
         ) -- end WHERE
-        
+
 ; -- end cursor boris
 
     earn_rec boris%rowtype;
-    
+
     fhandle utl_file.file_type;
-    
+
 BEGIN
 --    DBMS_OUTPUT.put_line('start '||systimestamp);
-    
+
     fhandle := utl_file.fopen(
 --                'U13_PROD'          
                 'U13_ALUMNI_FROM_BANNER'
@@ -1539,19 +1548,23 @@ BEGIN
         utl_file.put_line(fhandle,'p_file_name '             || ',' ||p_file_name);
         utl_file.put_line(fhandle,'p_include_parms '         || ',' ||p_include_parms);
     END IF;
-    
+
     utl_file.put_line(fhandle,
 --DBMS_OUTPUT.put_line(
-            'PERSON_UID' 
+--            'PERSON_UID' || ',' || 
+            'DECEASED_IND'
+            || ',' || 'DATE_OF_BIRTH'
             || ',' || 'ID'
             || ',' || 'NAME'
             || ',' || 'PREF_LAST_NAME'
             || ',' || 'MAIDEN_LAST_NAME'
-            --|| ',' || 'SPOUSE_NAME'
-            || ',' || 'RELATED_ID'
+            || ',' || 'PREFERRED_FULL_W_SALUTATION'
+            || ',' || 'PREFERRED_SHORT_W_SALUTATION'
+            || ',' || 'SIFE'
+            || ',' || 'SIFL'
             || ',' || 'PREF_DONOR_CATEGORY'
             || ',' || 'PREF_DONOR_CATEGORY_DESC'
-            || ',' || 'EMAIL_PREFERRED_ADDRESS'
+
             || ',' || 'STREET_LINE1'
             || ',' || 'STREET_LINE2'
             || ',' || 'CITY'
@@ -1570,10 +1583,6 @@ BEGIN
             || ',' || 'NTP'
             || ',' || 'AMS'
             || ',' || 'MAIL_CODES'
-            || ',' || 'PREFERRED_FULL_W_SALUTATION'
-            || ',' || 'PREFERRED_SHORT_W_SALUTATION'
-            || ',' || 'SIFE'
-            || ',' || 'SIFL'
             || ',' || 'RATING_TYPE1'
             || ',' || 'RATING_AMOUNT1'
             || ',' || 'RATING1'
@@ -1586,18 +1595,29 @@ BEGIN
             || ',' || 'RATING_AMOUNT3'
             || ',' || 'RATING3'
             || ',' || 'RATING_LEVEL3'
+            || ',' || 'TOTAL_NO_GIFTS'
+            || ',' || 'HIGH_GIFT_AMT'
+            || ',' || 'LAST_GIFT_DATE'
+            || ',' || 'JFSG_ESTIMATED_CAPACITY'
+            || ',' || 'DED_AMT_W_YTD_1'
+            || ',' || 'DED_AMT_W_YTD_2'
+            || ',' || 'DED_AMT_W_YTD_3'
+            || ',' || 'DED_AMT_W_YTD_4'
+            || ',' || 'LONGEST_CONS_YEARS_GIVEN'
+            || ',' || 'RECENT_CONSECUTIVE_YEARS'
             || ',' || 'MEMBERSHIP_NAME'
             || ',' || 'MEMBERSHIP_STATUS'
             || ',' || 'MEMBERSHIP_NUMBER'
             || ',' || 'EXPIRATION_DATE'
-            || ',' || 'WON_Membership_name'
+            || ',' || 'WON_MEMBERSHIP_NAME'
             || ',' || 'WON_MEMBERSHIP_STATUS'
             || ',' || 'WON_MEMBERSHIP_NUMBER'
-            || ',' || 'WON_expiration_date'
+            || ',' || 'WON_EXPIRATION_DATE'
             || ',' || 'FAN_MEMBERSHIP_NAME'
             || ',' || 'FAN_MEMBERSHIP_STATUS'
-            || ',' || 'FAN_membership_number'
+            || ',' || 'FAN_MEMBERSHIP_NUMBER'
             || ',' || 'FAN_EXPIRATION_DATE'
+            || ',' || 'EMAIL_PREFERRED_ADDRESS'
             || ',' || 'PERS_EMAIL'
             || ',' || 'NSU_EMAIL'
             || ',' || 'AL_EMAIL'
@@ -1622,45 +1642,47 @@ BEGIN
             || ',' || 'HOUSEHOLD_IND'
             || ',' || 'DATE_RANGE_TOTAL_GIVING'
             || ',' || 'DATE_RANGE_TOTAL_AUX_AMT'
+
             || ',' || 'DEGREE_1'
             || ',' || 'DEGREE_DESC_1'
             || ',' || 'MAJOR_1'
             || ',' || 'MAJOR_DESC_1'
+            || ',' || 'DEGREE_YEAR_1'
+--            || ',' || 'DEGREE_DATE_1'
+--            || ',' || 'ACADEMIC_YEAR_1'
+
             || ',' || 'DEGREE_2'
             || ',' || 'DEGREE_DESC_2'
             || ',' || 'MAJOR_2'
             || ',' || 'MAJOR_DESC_2'
+            || ',' || 'DEGREE_YEAR_2'
+--            || ',' || 'DEGREE_DATE_2'            
+--            || ',' || 'ACADEMIC_YEAR_2'
+
             || ',' || 'DEGREE_3'
             || ',' || 'DEGREE_DESC_3'
-            || ',' || 'ACADEMIC_YEAR_1'
-            || ',' || 'ACADEMIC_YEAR_2'
-            || ',' || 'ACADEMIC_YEAR_3' 
             || ',' || 'MAJOR_3'
             || ',' || 'MAJOR_DESC_3'
+            || ',' || 'DEGREE_YEAR_3'            
+--            || ',' || 'DEGREE_DATE_3'            
+--            || ',' || 'ACADEMIC_YEAR_3' 
+
             || ',' || 'SPEC_PURPOSE_TYPE'
             || ',' || 'SPEC_PURPOSE_TYPE_DESC'
             || ',' || 'SPEC_PURPOSE_GROUP'
             || ',' || 'SPEC_PURPOSE_GROUP_DESC'            
-            || ',' || 'TOTAL_NO_GIFTS'
-            || ',' || 'HIGH_GIFT_AMT'
-            || ',' || 'LAST_GIFT_DATE'
-            || ',' || 'DECEASED_IND'
-            || ',' || 'DATE_OF_BIRTH'
-            || ',' || 'JFSG_ESTIMATED_CAPACITY'
-            || ',' || 'DED_AMT_W_YTD_1'
-            || ',' || 'DED_AMT_W_YTD_2'
-            || ',' || 'DED_AMT_W_YTD_3'
-            || ',' || 'DED_AMT_W_YTD_4'
+
             || ',' || 'EMPLOYER'
             || ',' || 'POSITION'
             || ',' || 'VETERAN_IND'
             || ',' || 'GURIDEN_DESC'
-            || ',' || 'LONGEST_CONS_YEARS_GIVEN'
-            || ',' || 'RECENT_CONSECUTIVE_YEARS'
             || ',' || 'ACTIVITIES'
             || ',' || 'LEADERSHIP ROLES'
+
+--           || ',' || 'SPOUSE_NAME'
+--            || ',' || 'RELATED_ID'            
             );
-            
+
     FOR earn_rec
     IN boris
     LOOP
@@ -1670,16 +1692,21 @@ BEGIN
 --        'All work and no play makes Jack a dull boy.'
 --DBMS_OUTPUT.put_line(
         UTL_FILE.PUT_LINE(fhandle,
-            earn_rec.PERSON_UID
+--            earn_rec.PERSON_UID || ',' || 
+            earn_rec.DECEASED_IND
+            || ',' || earn_rec.date_of_birth            
             || ',' || earn_rec.ID
             || ',' || CHR(34) || earn_rec.NAME || CHR(34)
             || ',' || CHR(34) || earn_rec.PREF_LAST_NAME || CHR(34) 
             || ',' || CHR(34) || earn_rec.MAIDEN_LAST_NAME || CHR(34) 
-            --|| ',' || CHR(34) || earn_rec.SPOUSE_NAME || CHR(34) 
-            || ',' || earn_rec.related_id
+            || ',' || CHR(34) || earn_rec.PREFERRED_FULL_w_SALUTATION || CHR(34)
+            || ',' || CHR(34) || earn_rec.PREFERRED_SHORT_w_SALUTATION || CHR(34)
+            || ',' || CHR(34) || earn_rec.SIFE || CHR(34)
+            || ',' || CHR(34) || earn_rec.SIFL || CHR(34)
             || ',' || CHR(34)  || earn_rec.PREF_DONOR_CATEGORY || CHR(34) 
             || ',' || CHR(34)  || earn_rec.PREF_DONOR_CATEGORY_DESC || CHR(34) 
-            || ',' || CHR(34)  || earn_rec.EMAIL_PREFERRED_ADDRESS || CHR(34) 
+
+
             || ',' || CHR(34)  || earn_rec.STREET_LINE1 || CHR(34) 
             || ',' || CHR(34)  || earn_rec.STREET_LINE2 || CHR(34) 
             || ',' || CHR(34)  || earn_rec.CITY || CHR(34) 
@@ -1698,10 +1725,6 @@ BEGIN
             || ',' || earn_rec.ntp
             || ',' || earn_rec.ams
             || ',' || CHR(34) || earn_rec.mail_codes || CHR(34)
-            || ',' || CHR(34) || earn_rec.PREFERRED_FULL_w_SALUTATION || CHR(34)
-            || ',' || CHR(34) || earn_rec.PREFERRED_SHORT_w_SALUTATION || CHR(34)
-            || ',' || CHR(34) || earn_rec.SIFE || CHR(34)
-            || ',' || CHR(34) || earn_rec.SIFL || CHR(34)
             || ',' || earn_rec.rating_type1
             || ',' || earn_rec.rating_amount1
             || ',' || earn_rec.rating1
@@ -1714,10 +1737,20 @@ BEGIN
             || ',' || earn_rec.rating_amount3
             || ',' || earn_rec.rating3
             || ',' || earn_rec.rating_level3
+            || ',' || earn_rec.total_no_gifts
+            || ',' || earn_rec.high_gift_amt
+            || ',' || earn_rec.last_gift_date            
+            || ',' || earn_rec.JFSG_estimated_capacity
+            || ',' || earn_rec.DED_AMT_w_YTD_1
+            || ',' || earn_rec.DED_AMT_w_YTD_2
+            || ',' || earn_rec.DED_AMT_w_YTD_3
+            || ',' || earn_rec.DED_AMT_w_YTD_4
+            || ',' || earn_rec.longest_cons_years_given
+            || ',' || earn_rec.recent_consecutive_years
             || ',' || earn_rec.Membership_Name
             || ',' || earn_rec.Membership_Status
             || ',' || earn_rec.membership_number
-            || ',' || earn_rec.expiration_date
+            || ',' || to_char(earn_rec.expiration_date,'DD-MON-YYYY')
             || ',' || earn_rec.w_WON_Membership_name
             || ',' || earn_rec.w_WON_Membership_status
             || ',' || earn_rec.w_WON_membership_number
@@ -1725,7 +1758,9 @@ BEGIN
             || ',' || earn_rec.w_FAN_Membership_name
             || ',' || earn_rec.w_FAN_Membership_status
             || ',' || earn_rec.w_FAN_membership_number
-            || ',' || earn_rec.FAN_expiration_date
+            || ',' || earn_rec.FAN_expiration_date 
+
+            || ',' || CHR(34)  || earn_rec.EMAIL_PREFERRED_ADDRESS || CHR(34) 
             || ',' || earn_rec.pers_email
             || ',' || earn_rec.nsu_email
             || ',' || earn_rec.al_email
@@ -1750,57 +1785,58 @@ BEGIN
             || ',' || earn_rec.household_ind
             || ',' || earn_rec.DATE_RANGE_TOTAL_GIVING
             || ',' || earn_rec.DATE_RANGE_TOTAL_AUX_AMT
+
             || ',' || earn_rec.degree_1
             || ',' || CHR(34) || earn_rec.degree_desc_1 || CHR(34) 
             || ',' || CHR(34) || earn_rec.major_1 || CHR(34) 
             || ',' || CHR(34) || earn_rec.major_desc_1 || CHR(34) 
+            || ',' || to_char(earn_rec.degree_date_1,'YYYY')
+--            || ',' || earn_rec.degree_date_1
+--            || ',' || earn_rec.academic_year_1
+
             || ',' || earn_rec.degree_2
             || ',' || CHR(34) || earn_rec.degree_desc_2 || CHR(34)             
             || ',' || CHR(34) || earn_rec.major_2 || CHR(34) 
             || ',' || CHR(34) || earn_rec.major_desc_2|| CHR(34) 
+            || ',' || to_char(earn_rec.degree_date_2,'YYYY')            
+--            || ',' || earn_rec.degree_date_2
+--            || ',' || earn_rec.academic_year_2
+
             || ',' || earn_rec.degree_3
             || ',' || CHR(34) || earn_rec.degree_desc_3 || CHR(34) 
             || ',' || CHR(34) || earn_rec.major_3 || CHR(34) 
             || ',' || CHR(34) || earn_rec.major_desc_3 || CHR(34) 
-            || ',' || earn_rec.academic_year_1
-            || ',' || earn_rec.academic_year_2
-            || ',' || earn_rec.academic_year_3
+            || ',' || to_char(earn_rec.degree_date_3,'YYYY')
+--            || ',' || earn_rec.degree_date_3
+--            || ',' || earn_rec.academic_year_3
+
             || ',' || earn_rec.SPECIAL_PURPOSE_TYPE
             || ',' || earn_rec.SPECIAL_PURPOSE_TYPE_DESC
             || ',' || earn_rec.SPECIAL_PURPOSE_GROUP
             || ',' || earn_rec.SPECIAL_PURPOSE_GROUP_DESC
-            || ',' || earn_rec.total_no_gifts
-            || ',' || earn_rec.high_gift_amt
-            || ',' || earn_rec.last_gift_date
-            || ',' || earn_rec.DECEASED_IND
-            || ',' || earn_rec.date_of_birth
-            || ',' || earn_rec.JFSG_estimated_capacity
-            || ',' || earn_rec.DED_AMT_w_YTD_1
-            || ',' || earn_rec.DED_AMT_w_YTD_2
-            || ',' || earn_rec.DED_AMT_w_YTD_3
-            || ',' || earn_rec.DED_AMT_w_YTD_4
             || ',' || CHR(34) || earn_rec.employer || CHR(34) 
             || ',' || CHR(34) || earn_rec.position || CHR(34) 
             || ',' || earn_rec.Veteran_ind
             || ',' || earn_rec.guriden_desc
-            || ',' || earn_rec.longest_cons_years_given
-            || ',' || earn_rec.recent_consecutive_years
             || ',' || CHR(34) || earn_rec.activities || CHR(34)
             || ',' || CHR(34) || earn_rec.leadership_roles || CHR(34)
+
+--            || ',' || CHR(34) || earn_rec.SPOUSE_NAME || CHR(34) 
+--            || ',' || earn_rec.related_id
 --              , TRUE -- autoflush
               );
-                
+
         p_record_count := p_record_count + 1;
-        
+
 --        IF MOD(p_record_count,10) = 0 THEN
 --            utl_file.fflush(fhandle);
 --        END IF;
-        
+
     END LOOP;
-    
+
 --    DBMS_OUTPUT.put_line('end '|| p_record_count || ' ' ||systimestamp);
     --utl_file.put(fhandle, 'end '|| p_record_count || ' ' ||systimestamp);
-    
+
 --    utl_file.fflush(fhandle);
 
     utl_file.fclose(fhandle);
