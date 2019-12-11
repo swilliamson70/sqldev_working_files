@@ -7,7 +7,19 @@
 
   CREATE OR REPLACE EDITIONABLE PACKAGE BODY "NSUDEV"."NSU_BNR_TBX" AS
 
+/*************************************************
+PROCEDURE load_staging_table
+    Opens flat file (directory object and file name at top of var section) from TBX
+    Parses same and inserts the information into NSU_TBX_PDRDEDN
+    
+Northeastern State Univerisity
+    Nov/Dec 2018    Scott Williamson   Start -- used to load MN file after Tere did manual corrections on TBX provided CSV
+    11-Dec-2019     sw                  added replace to f_get_item to remove carriage returns from last field in file
+                                        (it was throwing ORA-06502, trying to fit a 2 char + chr(13) into a 2 char varchar2)
+    
+*************************************************/
   procedure load_staging_table AS
+
   /*
   remarks
 --NSU_TBX_PDRDEDN
@@ -75,6 +87,7 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
   v_loop            number(5);
   v_quote_count     number(5,1) := 0.0;
   v_quoteloop       number(5);
+  v_string          varchar2(999);
   
 -- TBX PDRDEDN flat file fields
     v_PIDM  varchar2(8); -- needs to be covered to number during insert
@@ -90,11 +103,11 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
     v_AMOUNT2 number(11,2);
     v_AMOUNT3 number(11,2);
     v_AMOUNT4 number(11,2);
-    v_OPT_CODE1 varchar2(2);
-    v_OPT_CODE2 varchar2(2);
-    v_OPT_CODE3 varchar2(2);
-    v_OPT_CODE4 varchar2(2);
-    v_OPT_CODE5 varchar2(2);
+    v_OPT_CODE1 varchar2(4);
+    v_OPT_CODE2 varchar2(4);
+    v_OPT_CODE3 varchar2(4);
+    v_OPT_CODE4 varchar2(4);
+    v_OPT_CODE5 varchar2(4);
     
 -- bdca rules for pre-validation validation
     cursor c_ptrbdca is
@@ -220,7 +233,7 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
                 p_opt_code2 := null;
         end if;            
         if p_option3_rule in ('N','S') then --No entry/Sys gen
-            --and p_amount4 = 0 then  
+            --and p_amount4 = 0 then 
                 p_opt_code3 := null;
         end if;            
         if p_option4_rule in ('N','S') then --No entry/Sys gen
@@ -333,6 +346,9 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
             else
                 p_item := substr(p_line,f_item_start(p_line,p_itemno),f_item_length(p_line,p_itemno));
             end if;
+            
+            --Get rid of extraneous carriage returns
+            p_item := replace(p_item,chr(13));
         
         RETURN p_item;
         
@@ -379,7 +395,7 @@ BEGIN --main
             begin
                 utl_file.get_line(v_FileHandle,v_line);
                 v_linecount := v_linecount +  1;
-                dbms_output.put_line(v_linecount || ':' || v_line);
+                dbms_output.put_line('Line In:'||v_linecount || ':' || v_line);
                 
                 if v_line is null then 
                     dbms_output.put_line('File is empty');
@@ -388,7 +404,9 @@ BEGIN --main
                 
    -- main
         --clean line buffer - 
-                --echo(v_line);               
+                --echo(v_line);
+                
+                -- Find all commas inside double quote pairs and replace with asterisks
                 v_quote_count := 0;
                 for v_loop in 1 .. length(v_line)-1 loop
                     --echo('char ' || v_loop || ' ' || substr(v_line,v_loop,1));
@@ -417,39 +435,67 @@ BEGIN --main
                 --echo(v_line);
                 v_line := replace(v_line,chr(34)); -- loose the d-quotes
                 v_line := replace(v_line,'*'); -- loose the stars
-                --echo('final ' || v_line);
+                echo('final ' || v_line);
    
                 -- get data elements
+                -- local f_get_pidm = if ID DNE, returns '0' as PIDM
                 v_PIDM := f_get_pidm(substr(v_line,1,f_item_length(v_line,1)));
                 --echo('pidm ' || v_PIDM);
+                
                 v_ID := f_get_item(v_line,1);
                 --echo('id ' || v_ID);
+                
                 v_BDCA_CODE := f_get_item(v_line,2);
                 --echo('bdca ' || v_BDCA_CODE);
+                
                 v_EFFECTIVE_DATE := to_date(f_get_item(v_line,3),'MM/DD/YYYY');
                 --echo('eff ' || v_effective_date);
+                
                 v_ACTIVITY_DATE := trunc(sysdate);
                 --echo('act ' || v_ACTIVITY_DATE);
+                
                 v_STATUS := f_get_item(v_line,4);
                 --echo('status ' || v_STATUS);
+                --v_string := f_get_item(v_line,4);
+                --v_string := 'v_string:'||v_string||' len:'||length(trim(f_get_item(v_line,4))) || 'ascii:';
+                --for i in 1 .. length(f_get_item(v_line,4)) loop
+                --        v_string := v_string || ascii(substr(f_get_item(v_line,4),i,1)) || ' ';
+                --end loop;
+                --echo(v_string);
+                
                 --echo(f_get_item(v_line,5));
                 v_AMOUNT1 := to_number(f_get_item(v_line,5));
                 --echo('amt1 ' || v_AMOUNT1);
+                
                 v_AMOUNT2 := to_number(f_get_item(v_line,6));
                 --echo('amt2 ' || v_AMOUNT2);
+                
                 v_AMOUNT3 := to_number(f_get_item(v_line,7));
                 --echo('amt3 ' || v_AMOUNT3);
+                
                 v_AMOUNT4 := to_number(f_get_item(v_line,8));
                 --echo('amt4 ' || v_AMOUNT4);
+                
+                --echo(f_get_item(v_line,9) );
+                --v_string := f_get_item(v_line,9);
+                --v_string := 'v_string:'||v_string||' len:'||length(trim(f_get_item(v_line,9))) || 'ascii:';
+                --for i in 1 .. length(f_get_item(v_line,9)) loop
+                --        v_string := v_string || ascii(substr(f_get_item(v_line,9),i,1)) || ' ';
+                --end loop;
+                --echo(v_string);
                 v_OPT_CODE1 := f_get_item(v_line,9);
                 --echo('opt1 ' || v_OPT_CODE1);
+                
                 --echo(f_get_item(v_line,10));
                 v_OPT_CODE2 := f_get_item(v_line,10);
                 --echo('opt2 ' || v_OPT_CODE2);
+                
                 v_OPT_CODE3 := f_get_item(v_line,11);
                 --echo('opt3 ' || v_OPT_CODE3);
+                
                 v_OPT_CODE4 := f_get_item(v_line,12);
                 --echo('opt4 ' || v_OPT_CODE4);
+                
                 v_OPT_CODE5 := f_get_item(v_line,13);  
                 --echo('opt5 ' || v_OPT_CODE5);
                 
@@ -549,13 +595,14 @@ BEGIN --main
                   
                 --COMMIT;  
                -- echo('Status: ' || SQLCODE || ' ' || SQLERRM);
-                
+                    
                 EXCEPTION
                     WHEN NO_DATA_FOUND THEN
                         echo('No Data Found');
                         EXIT;
                     WHEN OTHERS THEN
-                        echo('Status: ' || SQLCODE || ' ' || SQLERRM);
+                        echo('Post Insert Status: ' || SQLCODE || ' ' || SQLERRM);
+                        
             end;
         end loop;
         echo('end loop' || 'Error: '|| SQLCODE || ':' || SQLERRM);
@@ -572,7 +619,15 @@ BEGIN --main
   END load_staging_table;
 
 -------------------------------------------------------
-
+/*************************************************
+PROCEDURE LOAD_PDRDEDN
+    Takes records from NSU_TBX_PDRDEDN and calls pp_deduction.p_update or .p_create to update
+    employee deduction enrollment information in Banner
+    
+Northeastern State Univerisity
+    Nov/Dec 2018    Scott Williamson    Start -- used to load 2018 Open Enrollment information from TBX
+    
+*************************************************/
   procedure load_pdrdedn AS
   
   --vars
@@ -749,10 +804,16 @@ BEGIN --main
   end load_pdrdedn;
 
 -------------------------------------------------------
-    procedure mass_enddate as
-    /* Procedure to update deduction records by end dating all T records in nsu_tbx_pdrdedn table
+/*************************************************
+PROCEDURE MASS_ENDDATE
+    Procedure to update deduction records by end dating all T records in nsu_tbx_pdrdedn table
     
-    */
+Northeastern State Univerisity
+    Nov/Dec 2018    Scott Willilamson   Start - used to end date 2019 benefits from TBX info from 2018 Open Enrollment
+    
+*************************************************/
+    procedure mass_enddate as
+
     --vars
     v_error_code varchar2(10);
     v_error_msg varchar2(200);    
