@@ -14,8 +14,9 @@ PROCEDURE load_staging_table
     
 Northeastern State Univerisity
     Nov/Dec 2018    Scott Williamson   Start -- used to load MN file after Tere did manual corrections on TBX provided CSV
-    11-Dec-2019     sw                  added replace to f_get_item to remove carriage returns from last field in file
-                                        (it was throwing ORA-06502, trying to fit a 2 char + chr(13) into a 2 char varchar2)
+    
+    11-Dec-2019     sw                 added replace to f_get_item to remove carriage returns from last field in file
+                                       (it was throwing ORA-06502, trying to fit a 2 char + chr(13) into a 2 char varchar2)
     
 *************************************************/
   procedure load_staging_table AS
