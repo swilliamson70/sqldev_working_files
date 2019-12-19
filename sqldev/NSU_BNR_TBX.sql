@@ -11,7 +11,7 @@ CREATE OR REPLACE PACKAGE nsu_bnr_tbx IS
     PROCEDURE load_staging_table;
     -- Parses csv and loads data into staging table after looking up pidm and using pb_deduction_detail_rules.p_validate API 
     -- to validate TBX data. Loads staging table with deduction information, found pidm, and validation results
-    
+
     PROCEDURE check_staging_table;
     -- Used to check records in staging table when they have been imported directly from TBX spreadsheet 
     -- without using load_staging_table
@@ -23,6 +23,7 @@ CREATE OR REPLACE PACKAGE nsu_bnr_tbx IS
     -- Updates Banner deduction records by end dating everyone with a T record in staging table
 
 END nsu_bnr_tbx;
+
 /
 
 
@@ -34,9 +35,13 @@ PROCEDURE load_staging_table
     Parses same and inserts the information into NSU_TBX_PDRDEDN
 
 Northeastern State Univerisity
-    Nov/Dec 2018    Scott Williamson   Start -- used to load MN file after Tere did manual corrections on TBX provided CSV
+    Nov/Dec 2018    Scott Williamson    Start -- used to load MN file after Tere did manual corrections on TBX provided CSV
+    
     11-Dec-2019     sw                  added replace to f_get_item to remove carriage returns from last field in file
                                         (it was throwing ORA-06502, trying to fit a 2 char + chr(13) into a 2 char varchar2)
+    
+    18-Dec-2019     sw                  added amount5-8 to match new ptrbdca fields, 
+                                        currently p_validate only uses amount1-6 
 
 *************************************************/
   procedure load_staging_table AS
@@ -44,47 +49,36 @@ Northeastern State Univerisity
   /*
   remarks
 --NSU_TBX_PDRDEDN
---  TBX_PIDM - key
---  TBX_ID
---  TBX_LNAME
---  TBX_FNAME
---  TBX_MI
---  TBX_BDCA_CODE
---  TBX_EFFECTIVE_DATE
---  TBX_ACTIVITY_DATE
---  TBX_STATUS
---  TBX_AMOUNT1
---  TBX_AMOUNT2
---  TBX_AMOUNT3
---  TBX_AMOUNT4
---  TBX_OPT_CODE1
---  TBX_OPT_CODE2
---  TBX_OPT_CODE3
---  TBX_OPT_CODE4
---  TBX_OPT_CODE5
---  TBX_ERR_CODE
---  TBX_ERR_DESC
-
-  TBX_ID                      VARCHAR2(9)  +
-  TBX_BDCA_CODE               VARCHAR2(3)  +
-  TBX_EFFECTIVE_DATE          DATE         +
-  TBX_ACTIVITY_DATE           DATE         +
-  TBX_STATUS                  VARCHAR2(1)  +
-  TBX_AMOUNT1                 NUMBER(11,2) +
-  TBX_AMOUNT2                 NUMBER(11,2) +
-  TBX_AMOUNT3                 NUMBER(11,2) +
-  TBX_AMOUNT4                 NUMBER(11,2) +
-  TBX_OPT_CODE1               VARCHAR2(2)  +
-10 TBX_OPT_CODE2               VARCHAR2(2)  +
-11 TBX_OPT_CODE3               VARCHAR2(2)  +
-12 TBX_OPT_CODE4               VARCHAR2(2)  +
-13 TBX_OPT_CODE5               VARCHAR2(2)  +
-TBX_YEAR                    VARCHAR2(4)  +
-TBX_PICT_CODE               VARCHAR2(2)  +
-TBX_PAYNO                   VARCHAR2(3)  +
-TBX_USER_APPROVE_FLAG       VARCHAR2(1)  
-TBX_USER_ID                 VARCHAR2(30) 
-TBX_DATA_ORIGIN             VARCHAR2(30) 
+                    Datatype            Nullable ColID
+TBX_ID	            VARCHAR2(9 BYTE)	Yes		1	
+TBX_BDCA_CODE	    VARCHAR2(3 BYTE)	Yes		2	
+TBX_EFFECTIVE_DATE	DATE	            Yes		3	
+TBX_ACTIVITY_DATE	DATE	            Yes		4	
+TBX_STATUS	        VARCHAR2(1 BYTE)	Yes		5	
+TBX_AMOUNT1	        NUMBER(11,2)	    Yes		6	
+TBX_AMOUNT2	        NUMBER(11,2)	    Yes		7	
+TBX_AMOUNT3	        NUMBER(11,2)	    Yes		8	
+TBX_AMOUNT4	        NUMBER(11,2)	    Yes		9	
+TBX_OPT_CODE1	    VARCHAR2(2 BYTE)	Yes		10	
+TBX_OPT_CODE2	    VARCHAR2(2 BYTE)	Yes		11	
+TBX_OPT_CODE3	    VARCHAR2(2 BYTE)	Yes		12	
+TBX_OPT_CODE4	    VARCHAR2(2 BYTE)	Yes		13	
+TBX_OPT_CODE5	    VARCHAR2(2 BYTE)	Yes		14	
+TBX_YEAR	        VARCHAR2(4 BYTE)	Yes		15	
+TBX_PICT_CODE	    VARCHAR2(2 BYTE)	Yes		16	
+TBX_PAYNO	        VARCHAR2(3 BYTE)	Yes		17	
+TBX_USER_APPROVE_FLAG	VARCHAR2(1 BYTE)	Yes		18	
+TBX_USER_ID	        VARCHAR2(30 BYTE)	Yes		19	
+TBX_DATA_ORIGIN	    VARCHAR2(30 BYTE)	Yes		20	
+TBX_LOAD_DATE	    DATE	            Yes		21	
+TBX_DEDN_DATE	    DATE	            Yes		22	
+TBX_PIDM	        NUMBER(8,0)	        Yes		23	
+TBX_ERR_CODE	    VARCHAR2(9 BYTE)	Yes		24	
+TBX_ERR_DESC	    VARCHAR2(200 BYTE)	Yes		25	
+TBX_AMOUNT5	        NUMBER(11,2)	    Yes		26	
+TBX_AMOUNT6	        NUMBER(11,2)	    Yes		27	
+TBX_AMOUNT7	        NUMBER(11,2)	    Yes		28	
+TBX_AMOUNT8	        NUMBER(11,2)	    Yes		29	
 
   */
   -----Var
@@ -124,6 +118,10 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
     v_AMOUNT2 number(11,2);
     v_AMOUNT3 number(11,2);
     v_AMOUNT4 number(11,2);
+    v_AMOUNT5 number(11,2);
+    v_AMOUNT6 number(11,2);
+    v_AMOUNT7 number(11,2);
+    v_AMOUNT8 number(11,2);
     v_OPT_CODE1 varchar2(4);
     v_OPT_CODE2 varchar2(4);
     v_OPT_CODE3 varchar2(4);
@@ -183,6 +181,10 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
                                     p_amount2 in out number,
                                     p_amount3 in out number,
                                     p_amount4 in out number,
+                                    p_amount5 in out number,
+                                    p_amount6 in out number,
+                                    --p_amount7 in out number,
+                                    --p_amount8 in out number,
                                     p_opt_code1 in out varchar2,
                                     p_opt_code2 in out varchar2,
                                     p_opt_code3 in out varchar2,
@@ -197,6 +199,10 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
       p_amount2_rule  varchar2(1);
       p_amount3_rule  varchar2(1);
       p_amount4_rule  varchar2(1);
+      p_amount5_rule  varchar2(1);
+      p_amount6_rule  varchar2(1);
+      --p_amount7_rule  varchar2(1);
+      --p_amount8_rule  varchar2(1);
       p_option1_rule  varchar2(1);
       p_option2_rule  varchar2(1);
       p_option3_rule  varchar2(1);
@@ -210,6 +216,10 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
                 ,ptrbdca_amt2_ind
                 ,ptrbdca_amt3_ind
                 ,ptrbdca_amt4_ind
+                ,ptrbdca_amt5_ind
+                ,ptrbdca_amt6_ind
+                --,ptrbdca_amt7_ind
+                --,ptrbdca_amt8_ind
                 ,ptrbdca_option1_ind
                 ,ptrbdca_option2_ind
                 ,ptrbdca_option3_ind
@@ -220,6 +230,10 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
                 ,p_amount2_rule
                 ,p_amount3_rule
                 ,p_amount4_rule
+                ,p_amount5_rule
+                ,p_amount6_rule
+                --,p_amount7_rule
+                --,p_amount8_rule
                 ,p_option1_rule
                 ,p_option2_rule
                 ,p_option3_rule
@@ -245,6 +259,22 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
             --and p_amount4 = 0 then 
                 p_amount4 := null;
         end if;
+        if p_amount5_rule in ('N','S') then --No entry/Sys gen
+            --and p_amount1 = 0 then 
+                p_amount5 := null;
+        end if;
+        if p_amount6_rule in ('N','S') then --No entry/Sys gen
+            --and p_amount2 = 0 then 
+                p_amount6 := null;
+        end if;
+--        if p_amount7_rule in ('N','S') then --No entry/Sys gen
+--            --and p_amount3 = 0 then 
+--                p_amount7 := null;
+--        end if;
+--        if p_amount8_rule in ('N','S') then --No entry/Sys gen
+--            --and p_amount4 = 0 then 
+--                p_amount8 := null;
+--        end if;        
         if p_option1_rule in ('N','S') then --No entry/Sys gen
             --and p_amount4 = 0 then 
                 p_opt_code1 := null;
@@ -280,6 +310,8 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
                                               p_amount2,
                                               p_amount3,
                                               p_amount4,
+                                              p_amount5,
+                                              p_amount6,
                                               p_opt_code1,
                                               p_opt_code2,
                                               p_opt_code3,
@@ -504,6 +536,11 @@ BEGIN --main
                 --        v_string := v_string || ascii(substr(f_get_item(v_line,9),i,1)) || ' ';
                 --end loop;
                 --echo(v_string);
+                
+                -- added for 10/2019 API, but not included in TBX data
+                v_AMOUNT5 := null;
+                v_AMOUNT6 := null;
+                
                 v_OPT_CODE1 := f_get_item(v_line,9);
                 --echo('opt1 ' || v_OPT_CODE1);
 
@@ -529,6 +566,8 @@ BEGIN --main
                                         v_AMOUNT2,
                                         v_AMOUNT3,
                                         v_AMOUNT4,
+                                        v_AMOUNT5,
+                                        v_AMOUNT6,
                                         v_OPT_CODE1,
                                         v_OPT_CODE2,
                                         v_OPT_CODE3,
@@ -541,23 +580,23 @@ BEGIN --main
                     v_err_desc := 'Bad Banner ID from TBX';
                 end if;
 
-                echo('at insert - pidm:'||
-                     v_PIDM || ' id:' ||
-                     v_ID || ' bdca:' ||
-                     v_BDCA_CODE || ' eff:' ||
-                     v_EFFECTIVE_DATE || ' stat:' ||
-                     v_STATUS || ' amt1:' ||
-                     v_AMOUNT1 || ' amt2:' ||
-                     v_AMOUNT2 || ' amt3:' ||
-                     v_AMOUNT3 || ' amt4:' ||
-                     v_AMOUNT4 || ' opt1:' ||
-                     v_OPT_CODE1 || ' opt2:' ||
-                     v_OPT_CODE2 || ' opt3:' ||
-                     v_OPT_CODE3 || ' opt4:' ||
-                     v_OPT_CODE4 || ' opt5:' ||
-                     v_OPT_CODE5 || ' err:' ||
-                     v_err_code  || '::' || 
-                     v_err_desc);                
+                echo('at insert - '
+                        || 'pidm:' ||v_PIDM
+                        || ' id:' ||v_ID 
+                        || ' bdca:' ||v_BDCA_CODE 
+                        || ' eff:' ||v_EFFECTIVE_DATE 
+                        || ' stat:' ||v_STATUS 
+                        || ' amt1:' ||v_AMOUNT1 
+                        || ' amt2:' ||v_AMOUNT2 
+                        || ' amt3:' ||v_AMOUNT3 
+                        || ' amt4:' ||v_AMOUNT4 
+                        || ' opt1:' ||v_OPT_CODE1 
+                        || ' opt2:' ||v_OPT_CODE2 
+                        || ' opt3:' ||v_OPT_CODE3 
+                        || ' opt4:' ||v_OPT_CODE4 
+                        || ' opt5:' ||v_OPT_CODE5 
+                        || ' err:' ||v_err_code  
+                        || '::' ||v_err_desc);                
 
                 insert into NSU_TBX_PDRDEDN (
                     TBX_ID,
@@ -569,6 +608,10 @@ BEGIN --main
                     TBX_AMOUNT2,
                     TBX_AMOUNT3,
                     TBX_AMOUNT4,
+                    TBX_AMOUNT5,
+                    TBX_AMOUNT6,
+                    TBX_AMOUNT7,
+                    TBX_AMOUNT8,
                     TBX_OPT_CODE1,
                     TBX_OPT_CODE2,
                     TBX_OPT_CODE3,
@@ -596,6 +639,10 @@ BEGIN --main
                     v_AMOUNT2,
                     v_AMOUNT3,
                     v_AMOUNT4,
+                    null,
+                    null,
+                    null,
+                    null,
                     v_OPT_CODE1,
                     v_OPT_CODE2,
                     v_OPT_CODE3,
@@ -724,6 +771,8 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
     v_AMOUNT2 number(11,2);
     v_AMOUNT3 number(11,2);
     v_AMOUNT4 number(11,2);
+    v_AMOUNT5 number(11,2);
+    v_AMOUNT6 number(11,2);
     v_OPT_CODE1 varchar2(4);
     v_OPT_CODE2 varchar2(4);
     v_OPT_CODE3 varchar2(4);
@@ -742,13 +791,16 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
             , TBX_AMOUNT2
             , TBX_AMOUNT3
             , TBX_AMOUNT4
+            , TBX_AMOUNT5
+            , TBX_AMOUNT6
             , TBX_OPT_CODE1
             , TBX_OPT_CODE2
             , TBX_OPT_CODE3
             , TBX_OPT_CODE4
             , TBX_OPT_CODE5
         from
-            shadee.nsu_tbx_pdrdedn
+            nsu_tbx_pdrdedn
+            where tbx_err_code is null
         ;--where rownum < 2;
 
 -- bdca rules for pre-validation validation
@@ -758,6 +810,8 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
                 ,ptrbdca_amt2_ind
                 ,ptrbdca_amt3_ind
                 ,ptrbdca_amt4_ind
+                ,ptrbdca_amt5_ind
+                ,ptrbdca_amt6_ind
                 ,ptrbdca_option1_ind
                 ,ptrbdca_option2_ind
                 ,ptrbdca_option3_ind
@@ -780,6 +834,8 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
                                     p_amount2 in out number,
                                     p_amount3 in out number,
                                     p_amount4 in out number,
+                                    p_amount5 in out number,
+                                    p_amount6 in out number,
                                     p_opt_code1 in out varchar2,
                                     p_opt_code2 in out varchar2,
                                     p_opt_code3 in out varchar2,
@@ -794,6 +850,8 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
       p_amount2_rule  varchar2(1);
       p_amount3_rule  varchar2(1);
       p_amount4_rule  varchar2(1);
+      p_amount5_rule  varchar2(1);
+      p_amount6_rule  varchar2(1);
       p_option1_rule  varchar2(1);
       p_option2_rule  varchar2(1);
       p_option3_rule  varchar2(1);
@@ -808,6 +866,8 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
                 ,ptrbdca_amt2_ind
                 ,ptrbdca_amt3_ind
                 ,ptrbdca_amt4_ind
+                ,ptrbdca_amt5_ind
+                ,ptrbdca_amt6_ind
                 ,ptrbdca_option1_ind
                 ,ptrbdca_option2_ind
                 ,ptrbdca_option3_ind
@@ -818,6 +878,8 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
                 ,p_amount2_rule
                 ,p_amount3_rule
                 ,p_amount4_rule
+                ,p_amount5_rule
+                ,p_amount6_rule
                 ,p_option1_rule
                 ,p_option2_rule
                 ,p_option3_rule
@@ -843,6 +905,14 @@ TBX_DATA_ORIGIN             VARCHAR2(30)
             --and p_amount4 = 0 then 
                 p_amount4 := null;
         end if;
+        if p_amount5_rule in ('N','S') then --No entry/Sys gen
+            --and p_amount3 = 0 then 
+                p_amount5 := null;
+        end if;
+        if p_amount6_rule in ('N','S') then --No entry/Sys gen
+            --and p_amount4 = 0 then 
+                p_amount6 := null;
+        end if;        
         if p_option1_rule in ('N','S') then --No entry/Sys gen
             --and p_amount4 = 0 then 
                 p_opt_code1 := null;
@@ -1018,7 +1088,7 @@ BEGIN --main
                 --assume pidm is missing
                 v_PIDM := f_get_pidm(i.tbx_id);
 --                echo('pidm ' || v_PIDM);
-                
+
                 --v_ID := f_get_item(v_line,1);
                 v_ID := i.tbx_id;
 --                echo('id ' || v_ID);
@@ -1028,7 +1098,7 @@ BEGIN --main
 --                for l in 1..length(i.tbx_bdca_code) loop
 --                    echo(ascii(substr(i.tbx_bdca_code,l,1)));
 --                end loop;
-                
+
                 v_BDCA_CODE := to_char(i.tbx_bdca_code);
 --                echo('bdca ' || v_BDCA_CODE);
 
@@ -1066,6 +1136,8 @@ BEGIN --main
                 v_AMOUNT4 := to_number(i.tbx_amount4);
                 --echo('amt4 ' || v_AMOUNT4);
 
+                v_AMOUNT5 := null;
+                v_AMOUNT6 := null;
                 --echo(f_get_item(v_line,9) );
                 --v_string := f_get_item(v_line,9);
                 --v_string := 'v_string:'||v_string||' len:'||length(trim(f_get_item(v_line,9))) || 'ascii:';
@@ -1104,6 +1176,8 @@ BEGIN --main
                                         v_AMOUNT2,
                                         v_AMOUNT3,
                                         v_AMOUNT4,
+                                        v_AMOUNT5,
+                                        v_AMOUNT6,
                                         v_OPT_CODE1,
                                         v_OPT_CODE2,
                                         v_OPT_CODE3,
@@ -1137,7 +1211,7 @@ BEGIN --main
                     || ' err:' ||v_err_code
                     || '::' ||v_err_desc);                
 
-                update shadee.NSU_TBX_PDRDEDN 
+                update NSU_TBX_PDRDEDN 
                     SET
                         TBX_ID = v_ID,
                         TBX_BDCA_CODE = v_BDCA_CODE,
@@ -1148,7 +1222,8 @@ BEGIN --main
                         TBX_AMOUNT2 = v_AMOUNT2,
                         TBX_AMOUNT3 = v_AMOUNT3,
                         TBX_AMOUNT4 = v_AMOUNT4,
-                        -- need to add amount5 and 6
+                        TBX_AMOUNT5 = v_AMOUNT5,
+                        TBX_AMOUNT6 = v_AMOUNT6,
                         TBX_OPT_CODE1 = v_OPT_CODE1,
                         TBX_OPT_CODE2 = v_OPT_CODE2,
                         TBX_OPT_CODE3 = v_OPT_CODE3,
@@ -1183,7 +1258,7 @@ BEGIN --main
             end;
             echo('bottom of loop' || 'Error: '|| SQLCODE || ':' || SQLERRM);
         end loop;
-        
+
 
     --end if;
 
@@ -1222,7 +1297,7 @@ Northeastern State Univerisity
   --cursors
     cursor c_tbx is
         select *
-        from shadee.nsu_tbx_pdrdedn
+        from nsu_tbx_pdrdedn
         where tbx_dedn_date is null 
           and (tbx_err_code is null or tbx_err_code = 0)
           ;--and rownum <= 20;
@@ -1295,7 +1370,7 @@ Northeastern State Univerisity
                                       p_brea_code => null, 
                                       p_event_date => null,
                                       p_1042s_limit_ben_cde => null);
-        
+
 
                                             r_main.tbx_err_code := SQLCODE;                          
                                             r_main.tbx_err_desc := SQLERRM;
@@ -1382,7 +1457,7 @@ Northeastern State Univerisity
             end if;
             echo('Error check before ST Update: '||v_error_code||' '||v_error_msg);
 
-            update shadee.nsu_tbx_pdrdedn
+            update nsu_tbx_pdrdedn
                 set tbx_dedn_date = trunc(sysdate),
                     tbx_user_id = 'LOAD_PDRDEDN',
                     tbx_err_code = v_error_code,
