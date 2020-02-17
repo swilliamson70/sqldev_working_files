@@ -941,8 +941,9 @@ WITH w_spriden AS(
             
         LEFT JOIN w_recent_cons_years
             ON agbgift_pidm = w_recent_cons_years.spriden_pidm
-
-)
+    WHERE
+        1=1
+    )
 select *
 from w_gift;
 where entity_uid in (142290,166264,91625,119693)  ---,149463);

@@ -73,7 +73,7 @@ declare
   v_include_parameters        VARCHAR2(10) := 1;
     
 begin
-    nsu_alumni_standard_const(
+    nsu_bnr_alumni.standard_const(
   v_activity_codes,
   v_all_activities,
   v_activity_years,
