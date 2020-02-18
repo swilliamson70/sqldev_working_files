@@ -109,7 +109,7 @@ SELECT
 --    , person_uid
                 
 --    , primary_instructor_id
-    , course_reference_number --check
+--    , course_reference_number --check
     
     , goremal_email_address email --9
     , spriden_first_name    firstName --10 
@@ -118,13 +118,13 @@ SELECT
     , role                  userRole --13 
     , spriden_id            sisUserid --14 
 
---    , CASE
---        WHEN role = 'TEACHER' THEN
---            null
---        ELSE
---            'N'
---        END as includedinCourseFee --15 
---    , time_status           studentFullPartTimeStatus --16 
+    , CASE
+        WHEN role = 'TEACHER' THEN
+            null
+        ELSE
+            'N'
+        END as includedinCourseFee --15 
+    , time_status           studentFullPartTimeStatus --16 
     , substr(crse_number,4,1)   creditHours --17 
 
 FROM
@@ -200,13 +200,13 @@ FROM
         ) ON term_code_key = academic_period
         AND crn_key = course_reference_number 
 
-where course_reference_number = '20583'
-and academic_period = 201320;
-
-;            
+--where course_reference_number = '20583'
+--and academic_period = 201320;
+--
+--;            
 WHERE
     term_code_key BETWEEN 201910 AND 202030
-
+;
     and rownum < 10
 )
 ;UNION
