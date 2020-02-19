@@ -32,15 +32,39 @@ desc as_catalog_schedule;
 SELECT 
     rownum              AS  recordNumber
     , camp_desc             campus
-    , coll_desc             school
-    , dept_desc             institutionDepartment
+    , CASE
+        WHEN subj_code = 'ORGL' THEN 
+            'Extended Learning'
+        ELSE
+            coll_desc
+      END school
+    , CASE
+        WHEN subj_code = 'ORGL' THEN 
+            'Organizational Leadership'
+        ELSE
+            dept_desc
+      END institutionDepartment
     , term_code_key         term
-    , dept_code             department
+    , CASE
+        WHEN subj_code = 'ORGL' THEN
+            'ORGL'
+        ELSE dept_code
+      END department
     , crse_number           course
     , seq_number_key        section
     , camp_desc             campusTitle
-    , coll_desc             schoolTitle
-    , dept_desc             instituionDepartmentTitle
+    , CASE
+        WHEN subj_code = 'ORGL' THEN 
+            'Extended Learning'
+        ELSE
+            coll_desc
+      END schoolTitle
+    , CASE
+        WHEN subj_code = 'ORGL' THEN 
+            'Organizational Leadership'
+        ELSE
+            dept_desc
+      END instituionDepartmentTitle
     , title                 courseTitle
     , TRIM(subj_code) 
         || ' '
@@ -73,6 +97,7 @@ WHERE
 --ORDER BY 
 --    term_code_key,dept_code,crse_number
 ;
+---------------------------------------------------------------------------------------
 
 --enrollements.csv
 /*fields
@@ -99,10 +124,24 @@ WHERE
 SELECT 
     rownum              AS  recordNumber --1
     , camp_desc             campus --2
-    , coll_desc             school --3
-    , dept_desc             institutionDepartment --4
+    , CASE
+        WHEN subj_code = 'ORGL' THEN 
+            'Extended Learning'
+        ELSE
+            coll_desc
+      END              school --3
+    , CASE
+        WHEN subj_code = 'ORGL' THEN 
+            'Organizational Leadership'
+        ELSE
+            dept_desc
+      END institutionDepartment --4
     , term_code_key         term --5
-    , dept_code             department --6
+    , CASE
+        WHEN subj_code = 'ORGL' THEN
+            'ORGL'
+        ELSE dept_code
+      END department --6
     , crse_number           course --7
     , seq_number_key        section --8
 --    , primary_instructor_id
