@@ -29,9 +29,10 @@ desc as_catalog_schedule;
 25 estimatedEnrollment
 */
 
-SELECT 
+SELECT -- bnc courses
     rownum              AS  recordNumber
     , camp_desc             campus
+    -- per Julie - ORGL was never changed in Banner when it was moved from B&T
     , CASE
         WHEN subj_code = 'ORGL' THEN 
             'Extended Learning'
@@ -93,9 +94,6 @@ FROM
 WHERE
     active_section_ind = 'Y'
     AND term_code_key BETWEEN 201910 AND 202030
-    
---ORDER BY 
---    term_code_key,dept_code,crse_number
 ;
 ---------------------------------------------------------------------------------------
 
@@ -119,10 +117,9 @@ WHERE
 16 studentFullPartTimeStatus
 17 creditHours
 */
---select * from -- rownum as recordnumber...
---(
-SELECT 
-    rownum              AS  recordNumber --1
+
+SELECT -- bnc enrollments
+    rownum              AS  recordNumber --Field 1
     , camp_desc             campus --2
     , CASE
         WHEN subj_code = 'ORGL' THEN 
@@ -140,23 +137,16 @@ SELECT
     , CASE
         WHEN subj_code = 'ORGL' THEN
             'ORGL'
-        ELSE dept_code
+        ELSE subj_code --dept_code
       END department --6
     , crse_number           course --7
     , seq_number_key        section --8
---    , primary_instructor_id
---    , person_uid
-                
---    , primary_instructor_id
---    , course_reference_number --check
-    
     , goremal_email_address email --9
     , spriden_first_name    firstName --10 
     , spriden_mi            middleName --11 
     , spriden_last_name     lastName --12 
     , role                  userRole --13 
     , spriden_id            sisUserid --14 
-
     , CASE
         WHEN role = 'TEACHER' THEN
             null
@@ -198,7 +188,15 @@ FROM
                 , student_course.course_reference_number
                 , academic_study_extended.time_status
             FROM
-                student_course
+                (   SELECT
+                        person_uid
+                        , academic_period
+                        , course_reference_number
+                    FROM
+                        student_course
+                    WHERE
+                        registration_status not in ('OW','DD','DW','OD','WL')
+                ) student_course
                 JOIN(
                     SELECT
                         academic_study_extended.person_uid
@@ -238,41 +236,7 @@ FROM
                 ON person_uid = goremal_pidm
         ) ON term_code_key = academic_period
         AND crn_key = course_reference_number 
-
---where course_reference_number = '20583'
---and academic_period = 201320;
---
---;            
 WHERE
-    term_code_key BETWEEN 201910 AND 202030
+    active_section_ind = 'Y'
+    AND term_code_key BETWEEN 201910 AND 202030
 ;
-    and rownum < 10
-)
-;UNION
-SELECT
-    rownum recordNumber            
-    , campus_desc           campus
-    , college_desc          school
-    , department_desc       institutionDepartment
-    , academic_period       term
-    , subject               department
-    , course_number         course
-    , course_section_number section
-
-FROM
-    student_course
-    JOIN(
-        SELECT
-            person_uid
-            , academic_period
-            , current_time_status
-        FROM
-            academic_study_extended)
-        ON student_course.person_uid = academic_study_extended.person_uid
-WHERE
-    academic_period BETWEEN 201910 AND 202030
-
-    and rownum < 10
-
-;
-select current_time_status, academic_study_extended.* from academic_study_extended where current_time_status is not null;
