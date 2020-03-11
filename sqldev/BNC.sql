@@ -1,5 +1,3 @@
-desc as_catalog_schedule;
-
 --courses.csv - historical
 /*fields
  1 recordNumber
@@ -180,6 +178,7 @@ FROM
                 , null time_status
             FROM
                 instructional_assignment
+/* The Student Data will not be included in the History upload
             UNION
             SELECT
                 'STUDENT' as ROLE
@@ -212,6 +211,7 @@ FROM
                         academic_study_extended) academic_study_extended
                     ON student_course.person_uid = academic_study_extended.person_uid
                     AND student_course.academic_period = academic_study_extended.academic_period
+*/
             )
             JOIN(
                 SELECT
