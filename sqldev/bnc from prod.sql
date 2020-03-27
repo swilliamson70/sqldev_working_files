@@ -172,7 +172,7 @@ SELECT -- bnc enrollments
     , CASE
         WHEN ssbsect_subj_code = 'ORGL' THEN
             'ORGL'
-        ELSE ssbsect_dept_code --dept_code
+        ELSE scbcrse_dept_code --dept_code
       END                                   DEPARTMENT --6
     , ssbsect_crse_numb                     COURSE --7
     , ssbsect_seq_numb                      SECTION --8
