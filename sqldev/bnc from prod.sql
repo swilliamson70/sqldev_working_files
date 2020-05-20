@@ -35,18 +35,20 @@ SELECT -- bnc courses
         ELSE
             stvcoll_desc
       END                                   SCHOOL
-    , CASE
-        WHEN ssbsect_subj_code = 'ORGL' THEN 
-            'Organizational Leadership'
-        ELSE
-            stvdept_desc
-      END                                   INSTITUTIONDEPARTMENT
+--    , CASE
+--        WHEN ssbsect_subj_code = 'ORGL' THEN 
+--            'Organizational Leadership'
+--        ELSE
+--            stvdept_desc
+--      END                                   INSTITUTIONDEPARTMENT
+    , ssbsect_subj_code                     INSTITUTIONDEPARTMENT
     , ssbsect_term_code                     TERM
-    , CASE
-        WHEN ssbsect_subj_code = 'ORGL' THEN
-            'ORGL'
-        ELSE scbcrse_dept_code
-      END                                   DEPARTMENT
+--    , CASE
+--        WHEN ssbsect_subj_code = 'ORGL' THEN
+--            'ORGL'
+--        ELSE scbcrse_dept_code
+--      END                                   DEPARTMENT
+    , ssbsect_subj_code                     DEPARTMENT
     , scbcrse_crse_numb                     COURSE
     , ssbsect_seq_numb                      SECTION
     , stvcamp_desc                          CAMPUSTITLE
@@ -56,12 +58,13 @@ SELECT -- bnc courses
         ELSE
             stvcoll_desc
       END                                   SCHOOLTITLE
-    , CASE
-        WHEN ssbsect_subj_code = 'ORGL' THEN 
-            'Organizational Leadership'
-        ELSE
-            stvdept_desc
-      END                                   INSTITUIONDEPARTMENTTITLE    
+--    , CASE
+--        WHEN ssbsect_subj_code = 'ORGL' THEN 
+--            'Organizational Leadership'
+--        ELSE
+--            stvdept_desc
+--      END                                   INSTITUIONDEPARTMENTTITLE    
+    , stvsubj_desc                          INSTITUIONDEPARTMENTTITLE
     , scbcrse_title                         COURSETITLE
     , TRIM(ssbsect_subj_code) 
         || ' '
@@ -93,6 +96,8 @@ SELECT -- bnc courses
     , enrollment                            ESTIMATEDENROLLMENT    
 FROM
     ssbsect
+    JOIN stvsubj
+        ON ssbsect_subj_code = stvsubj_code
     JOIN stvcamp
         ON ssbsect_camp_code = stvcamp_code
     JOIN stvterm
@@ -102,7 +107,16 @@ FROM
             sfrstcr_crn
             , COUNT(sfrstcr_pidm) OVER (PARTITION BY sfrstcr_crn) ENROLLMENT
         FROM sfrstcr
-        WHERE sfrstcr_term_code = NSUDEV.GET_TERM_FOR_AR(TRUNC(SYSDATE))
+        WHERE 
+            --sfrstcr_term_code = '201910' -- NSUDEV.GET_TERM_FOR_AR(TRUNC(SYSDATE))
+                sfrstcr_term_code BETWEEN get_term_for_ar(TRUNC(SYSDATE)) AND
+                    TO_CHAR(
+                        CASE
+                            WHEN SUBSTR(get_term_for_ar(TRUNC(SYSDATE)),5,1) = '3' THEN
+                                TO_NUMBER(get_term_for_ar(TRUNC(SYSDATE))) + 80
+                            ELSE
+                                TO_NUMBER(get_term_for_ar(TRUNC(SYSDATE))) + 10
+                        END )
         AND NVL(sfrstcr_error_flag,'A') NOT IN ('D','L') --no Deletes, Wait Listeds
     ) ON ssbsect_crn = sfrstcr_crn
     JOIN(
@@ -127,7 +141,17 @@ FROM
         AND ssbsect_subj_code = scbcrse_subj_code
         AND rn = 1
 WHERE
-    ssbsect_term_code = NSUDEV.GET_TERM_FOR_AR(TRUNC(SYSDATE))    
+--    ssbsect_term_code = '201910' --NSUDEV.GET_TERM_FOR_AR(TRUNC(SYSDATE))  
+--    and scbcrse_dept_code = 'SSCI'
+    ssbsect_term_code BETWEEN get_term_for_ar(TRUNC(SYSDATE)) AND
+                TO_CHAR(
+                    CASE
+                        WHEN SUBSTR(get_term_for_ar(TRUNC(SYSDATE)),5,1) = '3' THEN
+                            TO_NUMBER(get_term_for_ar(TRUNC(SYSDATE))) + 80
+                        ELSE
+                            TO_NUMBER(get_term_for_ar(TRUNC(SYSDATE))) + 10
+                    END )
+ORDER BY 6,7,8                          
 ;
 ---------------------------------------------------------------------------------------
 
@@ -161,19 +185,21 @@ SELECT -- bnc enrollments
         ELSE
             stvcoll_desc
       END                                   SCHOOL --3
-    , CASE
-        WHEN ssbsect_subj_code = 'ORGL' THEN 
-            'Organizational Leadership'
-        ELSE
-            stvdept_desc
-      END                                   INSTITUTIONDEPARTMENT --4
+--    , CASE
+--        WHEN ssbsect_subj_code = 'ORGL' THEN 
+--            'Organizational Leadership'
+--        ELSE
+--            stvdept_desc
+--      END                                   INSTITUTIONDEPARTMENT --4
+    , ssbsect_subj_code                     INSTITUTIONDEPARTMENT      
     , classes.term_code                     TERM --5
     --, classes.crn
-    , CASE
-        WHEN ssbsect_subj_code = 'ORGL' THEN
-            'ORGL'
-        ELSE scbcrse_dept_code --dept_code
-      END                                   DEPARTMENT --6
+--    , CASE
+--        WHEN ssbsect_subj_code = 'ORGL' THEN
+--            'ORGL'
+--        ELSE scbcrse_dept_code --dept_code
+--      END                                   DEPARTMENT --6
+    , ssbsect_subj_code                     DEPARTMENT      
     , ssbsect_crse_numb                     COURSE --7
     , ssbsect_seq_numb                      SECTION --8
     , goremal_email_address                 EMAIL --9
