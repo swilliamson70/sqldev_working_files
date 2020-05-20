@@ -84,14 +84,27 @@ SELECT -- bnc courses
     , TO_CHAR(ptrm_end_date,'yyyy-MM-DD')       sectionEndDate
     , null                  classGroupId
     , actual_enrollment     estimatedEnrollment
+    , enrollment
+    , case when actual_enrollment = enrollment 
+        then 'TRUE'
+        else 'FALSE'
+        end as isequal
+    , sfrstcr_error_flag
 
 FROM
     nsuodsmgr.as_catalog_schedule
     JOIN stvterm
         ON as_catalog_schedule.term_code_key = stvterm.stvterm_code
+    JOIN(
+        select sfrstcr_error_flag, sfrstcr_crn, count(sfrstcr_pidm) over (partition by sfrstcr_crn) enrollment
+        from sfrstcr
+        where sfrstcr_term_code = 202030
+        and nvl(sfrstcr_error_flag,'A') not in ('D') --,'L')
+    ) ON as_catalog_schedule.crn_key = sfrstcr_crn
 WHERE
     active_section_ind = 'Y'
-    AND term_code_key BETWEEN 201910 AND 202030
+    AND term_code_key = '202030' -- BETWEEN 201910 AND 202030
+    and crn_key = 30002
 ;
 ---------------------------------------------------------------------------------------
 
@@ -178,7 +191,7 @@ FROM
                 , null time_status
             FROM
                 instructional_assignment
-/* The Student Data will not be included in the History upload
+/* The Student Data will not be included in the History upload */
             UNION
             SELECT
                 'STUDENT' as ROLE
@@ -211,7 +224,6 @@ FROM
                         academic_study_extended) academic_study_extended
                     ON student_course.person_uid = academic_study_extended.person_uid
                     AND student_course.academic_period = academic_study_extended.academic_period
-*/
             )
             JOIN(
                 SELECT
@@ -238,5 +250,6 @@ FROM
         AND crn_key = course_reference_number 
 WHERE
     active_section_ind = 'Y'
-    AND term_code_key BETWEEN 201910 AND 202030
+    --AND term_code_key BETWEEN 201910 AND 202030
+    AND term_code_key = nsudev.get_term_for_ar(trunc(sysdate))
 ;
