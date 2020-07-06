@@ -1,3 +1,3 @@
-# NSUDev Code
+# scott_working_files
 
-Procedures, functions, packages, etc. from the NSUDEV schema
+Copy of SQLDev working files folder
