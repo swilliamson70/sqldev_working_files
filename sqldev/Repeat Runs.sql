@@ -16,7 +16,7 @@
 				SELECT
 					MAX(shrdgmr_term_code_grad)
 				FROM
-					shrdgmr
+					shrdgmr -- degree table
 				WHERE
 					shrdgmr_pidm          = ac1.pidm
 					AND shrdgmr_levl_code = ac1.lvl
@@ -69,9 +69,9 @@
 				  , s3.shrtckn_seq_no "CRS_SEQ1"
 				  , s3.shrtckn_crn "CRS_SEQ2"
 				FROM
-					shrtckn s3
-				  , shrtckg s4
-				  , shrtckl s5
+					shrtckn s3 -- Institutional Course Term Maintenance Repeating Table
+				  , shrtckg s4 -- Institutional Courses Grade Repeating Table
+				  , shrtckl s5 -- Institutional Course Maintenance Level Applied Repeating Table
 				WHERE
 					s3.shrtckn_pidm           = s4.shrtckg_pidm
 					AND s3.shrtckn_term_code  = s4.shrtckg_term_code
