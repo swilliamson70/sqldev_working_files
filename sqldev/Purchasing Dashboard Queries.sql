@@ -97,8 +97,9 @@ WHERE
 
 
 )
+;
 --select w_encumberances.* from w_encumberances;
-select * from FPRREQA where fprreqa_appr_ind <> 'Y' ;--FPRREQA_seq_num >1 order by 4 desc;
+select * from FPRREQA ;--where fprreqa_appr_ind <> 'Y' ;--FPRREQA_seq_num >1 order by 4 desc;
 select * from fprreqa where fprreqa_reqh_code = 'R0024739';
 select * from fgbench;
 SELECT

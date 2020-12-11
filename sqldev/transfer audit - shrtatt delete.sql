@@ -60,7 +60,7 @@ from (
         join spriden
             on shrtatt_pidm = spriden_pidm
             and spriden_change_ind is null
-            and shrtatt_pidm in (1292,1079,2011,6202,12406,21046,20047,19285,130189,130722)
+            and shrtatt_pidm = 1292
         
         join shrtrit -- transfer institution
             on shrtatt_pidm = shrtrit_pidm
@@ -92,4 +92,3 @@ from (
 where hlwk_code in ('AS','NDG')
 )
 ;
-commit;

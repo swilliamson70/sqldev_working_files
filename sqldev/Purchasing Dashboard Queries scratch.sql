@@ -156,6 +156,8 @@ SELECT
                 ' ') ENCUMBERANCE_STATUS
                 
     ,fgbench_vendor_pidm VENDOR
+    ,spriden_id VENDOR_ID
+    ,spriden_last_name VENDOR_NAME
     ,fgbench_estab_date
     ,fgbench_create_user
     ,to_char(sysdate,'DD-MON-YYYY') CURRENT_DATE
@@ -168,26 +170,29 @@ SELECT
     --,fgbench.*
 FROM 
     fgbench
-WHERE
-    to_date(fgbench_trans_date) between-- to_date('01-JUL-2020') and to_date('30-JUN-2021')   
-    --beginning 
-    to_date(
-        '01-JUL-' ||
-            case 
-                when extract(month from sysdate) >= 7 then 
-                    to_char(extract(year from sysdate))
-                else to_char(extract(year from sysdate) -1)
-            end
-        )AND(
-        '30-JUN-' || 
-            case
-                when extract(month from sysdate) >= 7 then
-                    to_char(extract(year from sysdate)+1)
-                else to_char(extract(year from sysdate))
-            end
-        )
-
-    AND fgbench_type = 'R'
+    JOIN spriden
+        ON fgbench_vendor_pidm = spriden_pidm
+        AND spriden_change_ind is null
+WHERE 1=1
+--    to_date(fgbench_trans_date) between-- to_date('01-JUL-2020') and to_date('30-JUN-2021')   
+--    --beginning 
+--    to_date(
+--        '01-JUL-' ||
+--            case 
+--                when extract(month from sysdate) >= 7 then 
+--                    to_char(extract(year from sysdate))
+--                else to_char(extract(year from sysdate) -1)
+--            end
+--        )AND(
+--        '30-JUN-' || 
+--            case
+--                when extract(month from sysdate) >= 7 then
+--                    to_char(extract(year from sysdate)+1)
+--                else to_char(extract(year from sysdate))
+--            end
+--        )
+--
+    --AND fgbench_type = 'R'
     AND fgbench_status_ind = 'O'
 ;
 select * from all_tab_comments where table_name like 'F%' and lower(comments) like '%encumbrance%';
@@ -271,4 +276,63 @@ from(
  */
 )
 where rn = 1    ;
+
+select * from all_tab_comments where upper(comments) like '%REQUES%'; --table_name = 'FPRREQA';
+select * from all_col_comments where table_name = 'FPBREQH';
+select fprreqa_reqh_code from FPRREQA ;
+--FPBREQH_ATYP_CODE	ACCOUNT TYPE CODE:  Classifies an account type i.e., asset, liabilities,        control, fund balance, revenue, and labor expenses are used for reporting       purposes.
+select * from fpbreqh;
+
+select 
+    fpbreqh_code
+    
+    , fpbreqh_activity_date
+    , fpbreqh_user_id
+    , fpbreqh_reqh_date
+    , fpbreqh_trans_date
+    , fpbreqh_name
+    , fpbreqh_phone_area
+    , fpbreqh_phone_num
+    , fpbreqh_phone_ext
+    , fpbreqh_vend_pidm
+    , fpbreqh_atyp_code
+    , fpbreqh_atyp_seq_num
+    , fpbreqh_coas_code
+    , fpbreqh_orgn_code
+    , fpbreqh_reqd_date
+    , fpbreqh_complete_ind
+    , fpbreqh_print_ind
+    , fpbreqh_encumb_ind
+    , fpbreqh_susp_ind
+    , fpbreqh_cancel_ind
+    , fpbreqh_cancel_date
+    , fpbreqh_post_date
+    , fpbreqh_appr_ind
+    , fpbreqh_text_ind
+    , fpbreqh_edit_defer_ind
+    , fpbreqh_recomm_vend_name
+    , fpbreqh_curr_code
+    , fpbreqh_nsf_on_off_ind
+    , fpbreqh_single_acctg_ind
+    , fpbreqh_closed_ind
+    , fpbreqh_ship_code
+    , fpbreqh_rqst_type_ind
+    , fpbreqh_inventory_req_ind
+    , fpbreqh_crsn_code
+    , fpbreqh_delivery_comment
+    , fpbreqh_email_addr
+    , fpbreqh_fax_area
+    , fpbreqh_fax_number
+    , fpbreqh_fax_ext
+    , fpbreqh_attention_to
+    , fpbreqh_vendor_contact
+    , fpbreqh_disc_code
+    , fpbreqh_vend_email_addr
+    , fpbreqh_copied_from
+    , fpbreqh_tgrp_code
+    , fpbreqh_req_print_date
+    , fpbreqh_closed_date
+from fpbreqh
+;
+
 

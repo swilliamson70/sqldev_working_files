@@ -1,15 +1,5 @@
-delete from shrtatt
-where 
-    SHRTATT_PIDM||SHRTATT_TRIT_SEQ_NO||SHRTATT_TRAM_SEQ_NO|| SHRTATT_TRCR_SEQ_NO|| SHRTATT_TRCE_SEQ_NO||SHRTATT_ATTR_CODE
- in
-(select 
-    to_char(SHRTATT_PIDM)
-    || to_char(SHRTATT_TRIT_SEQ_NO)
-    || to_char(SHRTATT_TRAM_SEQ_NO)
-    || to_char(SHRTATT_TRCR_SEQ_NO)
-    || to_char(SHRTATT_TRCE_SEQ_NO)
-    ||trim(SHRTATT_ATTR_CODE)
-from (  
+select *
+from (
     select
         shrtatt_pidm
         , spriden_id
@@ -90,6 +80,4 @@ from (
     )
 
 where hlwk_code in ('AS','NDG')
-)
 ;
-commit;
